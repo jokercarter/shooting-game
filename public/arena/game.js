@@ -199,7 +199,10 @@
       rings.push({x:xx,y:yy,life:660,max:660,color,r:blast*.56*power,kind:'seeker',blast,power,seed,layer:'main'});
       rings.push({x:xx,y:yy,life:820,max:820,color:'#fff0a9',r:blast*.9*power,kind:'seeker',blast,power:power*1.08,seed:seed+7,layer:'outer'});
       rings.push({x:xx,y:yy,life:320,max:320,color:'#ffb653',r:blast*.3*power,kind:'seeker',blast:blast*.45,power,seed:seed+13,layer:'core'});
-      burst(xx,yy,color,42,'seeker');triggerCameraShake(15);triggerScreenShake(22);triggerExplosionFlash(.72);
+      burst(xx,yy,color,42,'seeker');
+      const shakeScale=triggerExplosionFeedback(xx,yy,blast,15,22);
+      triggerExplosionFlash(.72);
+      return shakeScale;
     };
   }
   function updateCamera(){
@@ -364,6 +367,18 @@
   function triggerCameraShake(amount){cameraShake=Math.max(cameraShake,displaySettings.lowEffects?amount*.35:amount)}
   function triggerScreenShake(amount){screenShake=Math.max(screenShake,displaySettings.lowEffects?amount*.42:amount)}
   function triggerExplosionFlash(amount){explosionFlash=Math.max(explosionFlash,displaySettings.lowEffects?amount*.5:amount)}
+  function explosionShakeScale(x,y,blast){
+    const me=localPlayer();
+    if(!me||!Number.isFinite(me.x)||!Number.isFinite(me.y)||!Number.isFinite(x)||!Number.isFinite(y))return 1;
+    const radius=Math.max(1,Number(blast)||1),distance=Math.hypot(me.x-x,me.y-y);
+    const falloffDistance=Math.max(420,radius*6),linear=Math.max(0,1-Math.min(1,distance/falloffDistance));
+    return linear*linear;
+  }
+  function triggerExplosionFeedback(x,y,blast,cameraAmount,screenAmount){
+    const scale=explosionShakeScale(x,y,blast);
+    triggerCameraShake(cameraAmount*scale);triggerScreenShake(screenAmount*scale);
+    return scale;
+  }
   function updateWeaponRecoil(dt){
     for(const [owner,kick] of weaponRecoil){
       const next=kick*Math.exp(-dt*22);
@@ -549,7 +564,7 @@
       burst(old.x,old.y,old.color,blast?(missile?42:24):7,style);
       if(missile&&blast){
         const strength=Math.min(28,9+blast*.19);
-        triggerCameraShake(Math.min(18,strength*.72));triggerScreenShake(strength);triggerExplosionFlash(Math.min(.9,.3+blast/190));
+        triggerExplosionFeedback(old.x,old.y,blast,Math.min(18,strength*.72),strength);triggerExplosionFlash(Math.min(.9,.3+blast/190));
         rings.push({x:old.x,y:old.y,life:820,max:820,color:'#fff0a9',r:blast*.9*power,kind:style,blast,power:power*1.08,seed:seed+7,layer:'outer'});
         rings.push({x:old.x,y:old.y,life:320,max:320,color:'#ffb653',r:blast*.3*power,kind:style,blast:blast*.45,power,seed:seed+13,layer:'core'});
       }
