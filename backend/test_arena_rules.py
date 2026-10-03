@@ -909,6 +909,12 @@ def test_portals_pair_and_preserve_direction_for_players_and_projectiles():
     arena._move_player(room, player, .5, now)
 
     north, south = arena.MAPS["glass"]["portals"]
+    # Passing near the small ground marker must not trigger a teleport.
+    assert player.y < north["y"] - north["radius"] - 15
+
+    # Once the player's body overlaps the marker, the paired exit is used.
+    player.x, player.y = north["x"], north["y"] - 30
+    arena._move_player(room, player, .1, now + 1)
     assert player.y > south["y"]
     assert player.x == pytest.approx(south["x"])
 
