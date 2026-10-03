@@ -1,11 +1,13 @@
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
-$externalPython = Join-Path $env:USERPROFILE '.codex\workspace-deps\SWE-AI\venv\Scripts\python.exe'
 $localPython = Join-Path $workspaceRoot '.venv\Scripts\python.exe'
-if (Test-Path -LiteralPath $externalPython) {
-  Write-Output $externalPython
-} elseif (Test-Path -LiteralPath $localPython) {
+if (Test-Path -LiteralPath $localPython) {
   Write-Output $localPython
-} else {
-  throw 'Project Python runtime is missing. Run .\start.ps1 -Install to create it outside the workspace.'
+  exit 0
 }
+$python = Get-Command python -ErrorAction SilentlyContinue
+if ($python) {
+  Write-Output $python.Source
+  exit 0
+}
+throw 'Python 3.13+ was not found. Install Python or create .venv in the project directory.'

@@ -1,8 +1,4 @@
-"""Public-only entry point for Morrow Fields.
-
-This intentionally excludes the private Workbench API, database and Codex
-integration. It serves only the game files and multiplayer WebSocket rooms.
-"""
+"""Standalone public entry point for Morrow Fields."""
 from contextlib import asynccontextmanager
 import logging
 import os

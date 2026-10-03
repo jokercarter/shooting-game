@@ -33,7 +33,7 @@ def _inside_root(path: Path) -> bool:
         return False
 
 
-def _workspace_file_count() -> int:
+def _project_file_count() -> int:
     return sum(len(files) for _, _, files in os.walk(ROOT, followlinks=False))
 
 
@@ -68,9 +68,9 @@ def clean(dry_run: bool = False) -> dict:
             if report.name not in KEEP_LATENCY:
                 _remove(report, dry_run, removed, skipped)
     result = {
-        "workspace": str(ROOT),
+        "project": str(ROOT),
         "dry_run": dry_run,
-        "file_count": _workspace_file_count(),
+        "file_count": _project_file_count(),
         "removed": removed,
         "skipped": skipped,
         "remaining_arena_logs": sorted(path.name for path in ARENA_OUTPUT.glob("*.log")),
@@ -79,7 +79,7 @@ def clean(dry_run: bool = False) -> dict:
         ),
     }
     if not dry_run:
-        cleanup_record = ARENA_OUTPUT / "workspace-cleanup-2026-10-02.json"
+        cleanup_record = ARENA_OUTPUT / "arena-cleanup.json"
         existing = {}
         if cleanup_record.exists():
             try:

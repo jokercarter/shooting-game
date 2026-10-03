@@ -1,32 +1,15 @@
 {
-  "name": "jokercarter-portfolio",
+  "name": "morrow-fields",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node tools/with_node_dependencies.mjs build",
-    "start": "node server.mjs",
-    "typecheck": "node tools/with_node_dependencies.mjs typecheck",
-    "test": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-Backend.ps1",
-    "test:browser": "node tools/with_node_dependencies.mjs browser-test",
-    "install:dependencies": "node tools/with_node_dependencies.mjs install"
-  },
-  "dependencies": {
-    "@codemirror/lang-python": "^6.2.1",
-    "@tanstack/react-query": "^5.103.1",
-    "@uiw/react-codemirror": "^4.25.11",
-    "dompurify": "^3.4.15",
-    "mermaid": "^12.0.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.18.4"
+    "build": "node build.mjs",
+    "test:backend": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-Backend.ps1",
+    "test:browser": "playwright test",
+    "verify:deploy": "python tools/verify_arena_deploy_config.py"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.0"
+    "@playwright/test": "^1.63.0"
   }
 }

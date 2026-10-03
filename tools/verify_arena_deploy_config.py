@@ -1,4 +1,4 @@
-"""Check the standalone arena deployment files before using a cloud platform."""
+"""Check the standalone Morrow Fields deployment files."""
 
 import json
 import sys
@@ -19,23 +19,15 @@ RENDER = ROOT / "render.yaml"
 def main():
     docker = DOCKERFILE.read_text(encoding="utf-8")
     render = RENDER.read_text(encoding="utf-8")
-    required = [
-        "package.json",
-        "package-lock.json",
-        "build.mjs",
-        "site.config.mjs",
-        "learning-content.mjs",
-        "learning-code.mjs",
-        "public",
-        "backend",
-    ]
     result = {
         "dockerfile_exists": DOCKERFILE.exists(),
         "render_config_exists": RENDER.exists(),
         "quick_tunnel_launcher_exists": (ROOT / "start-arena-public.ps1").exists(),
         "quick_tunnel_stop_exists": (ROOT / "stop-arena-public.ps1").exists(),
-        "required_sources_present": all((ROOT / item).exists() for item in required),
-        "frontend_build_stage": "RUN node build.mjs" in docker,
+        "arena_backend_present": (ROOT / "backend" / "arena_public.py").exists(),
+        "arena_static_present": (ROOT / "public" / "arena" / "index.html").exists(),
+        "arena_build_present": (ROOT / "build.mjs").exists(),
+        "static_copy_is_game_only": "COPY public/arena ./dist/arena" in docker,
         "public_backend_only": "backend.arena_public:app" in docker and
         "app.mount('/arena'" in (ROOT / "backend" / "arena_public.py").read_text(encoding="utf-8"),
         "port_uses_platform_value": "${PORT:-8080}" in docker,
@@ -50,7 +42,7 @@ def main():
         result["health_payload"] = response.json()
     result["preflight_passed"] = all(
         value is True for key, value in result.items()
-        if key.endswith(("exists", "present", "stage", "only", "value", "runtime", "path"))
+        if key.endswith(("exists", "present", "only", "stage", "value", "runtime", "path"))
     ) and result["health_status"] == 200
     output = ROOT / "output" / "arena-validation" / "deployment-preflight.json"
     output.parent.mkdir(parents=True, exist_ok=True)

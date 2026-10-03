@@ -1,151 +1,129 @@
-# Joker Carter · SWE + AI workbench
+# Morrow Fields
 
-本地全栈学习工作台：公开作品集 + 12 周课程 + Jupyter Notebook + 文档知识库 + 本机 Codex。React/TypeScript/Vite 前端，FastAPI/SQLAlchemy/SQLite 后端。工作台尚未绑定域名或稳定发布公网；竞技场可通过局域网或临时隧道联机。
+[中文](#zh) · [English](#en)
 
-## 启动
+<a id="zh"></a>
 
-Windows，Node.js 22+、Python 3.13。已安装依赖的当前电脑：
+## 中文
 
-```powershell
-.\start.ps1
-```
+Morrow Fields 是一款原创像素风俯视角在线竞技场游戏。玩家在森林、河流、桥梁和遗迹之间移动，拾取武器和补给，与其他玩家或机器人进行实时战斗。
 
-首次安装或重建隔离环境：
+![Morrow Fields arena](output/playwright/arena-effects-resources-2026-10-02.png)
 
-```powershell
-.\start.ps1 -Install
-```
+### 游戏特色
 
-Python 与 Node 依赖放在用户目录 `%USERPROFILE%\.codex\workspace-deps\SWE-AI`，避免依赖树把工作区文件数推高；构建、类型检查和浏览器测试只在命令运行时创建临时目录联接，并在退出时移除。Arena 启动器直接使用外部 Python 环境，游戏仍从工作区的 `dist/` 读取资源；2026-10-02 保存拾取、共享状态回归和 10 人延迟记录并新增 AI 交接文档后，工作区为 547 个文件。
+- 三张地图：苔木林地、阳谷果园、赤叶遗迹。
+- 六种模式：自由混战、感染乱斗、队伍积分、夺旗、五命决斗、感染生存。
+- 15 种功能不同的武器，包括近距离武器、爆炸武器、追踪武器、能量光束和治疗武器。
+- 地图中的武器、血包和护甲会在固定补给点生成，并在拾取后重新出现。
+- 岩石、箱子、树木和尖刺会阻挡角色与弹道；草丛可以隐藏角色，但不会阻挡武器。
+- 草丛中的玩家在同一片草丛内可以互相看见；开火或受到伤害后会暴露 3 秒。
+- 导弹拥有像素爆炸、碎片、烟尘、屏幕闪光和镜头抖动效果。
+- 支持房间码联机、机器人对手、旁观、房间聊天和短回放。
+- 支持高 DPI 画布渲染，在高分辨率屏幕上保持清晰的像素画面。
 
-访问 [工作台](http://127.0.0.1:4173/app/) 或 [首页](http://127.0.0.1:4173/)。第一次访问由你设置管理员用户名和至少 12 位密码；没有默认密码、没有公众注册。测试账号只存在于独立临时数据库。
+### 地图
 
-启动器构建网站、运行 Alembic 迁移，然后隐藏运行本地服务。日志在 `.workbench/server.log`、`.workbench/server-error.log`，PID 在 `.workbench/server.pid`。端口占用会明确报错，不会自动杀掉其他程序。停止：
+| 地图 | 环境 | 战术特点 |
+| --- | --- | --- |
+| Mosswood Crossing | 森林与纵向河流 | 桥梁、草丛和分散的掩体适合迂回和伏击 |
+| Sunvale Orchard | 果园与横向河流 | 多条桥路连接两侧，适合争夺中央区域 |
+| Redleaf Ruins | 赤色遗迹与浅滩 | 遗迹墙体、草丛和补给点形成多层交战路线 |
 
-```powershell
-.\stop.ps1
-```
+### 操作方式
 
-前台调试：`npm run build`，再 `npm start`。修改后端需要重启；修改前端需要重新 build。`requirements.lock.txt` 与 `package-lock.json` 锁定依赖；PyTorch 使用 CPU wheel，避免原先 Anaconda 的 OpenMP 冲突。不要使用 `KMP_DUPLICATE_LIB_OK` 掩盖依赖问题。
+| 操作 | 按键 |
+| --- | --- |
+| 移动 | `WASD` |
+| 瞄准 / 射击 | 鼠标移动 / 鼠标左键 |
+| 跳跃闪避 | 鼠标右键 |
+| 护幕 | `Q` |
+| 修复生命 | `E` |
+| 装填 | `R` |
+| 切换武器 | `1–0`、`N`、`M`、`H`、`J`、`L` |
+| 蓄力瞄准 | `F` |
+| 副射击 | `Y` |
+| 选择升级 | `V`、`X`、`C`，然后按 `Space` 确认 |
 
-## 使用地图
+### 本地运行
 
-| 页面 | 功能 |
-|---|---|
-| `/app/dashboard` | 真实章节进度、记录学习时长、到期提醒和操作记录 |
-| `/app/courses` | 12 周中英文路线、48 个章节检查、PDF、复习日期和 Notebook |
-| `/app/tasks` | 创建/编辑/删除、列表/看板、状态、优先级、标签、日期、搜索和筛选 |
-| `/app/notes` | Markdown 编辑预览、自动保存、课程关联与复习日期 |
-| `/app/notebooks?week=01` | 12 个 ipynb，代码/Markdown 单元、排序、增删、运行、停止、重启、图表、保存和导入导出 |
-| `/app/documents` | PDF/MD/TXT 解析、去重、全文搜索、页码、阅读和关联 |
-| `/app/ai` | 本机 Codex 连接状态、独立聊天、多轮、流式、停止、历史、选中来源预览和引用 |
-| `/app/applications` | 公司岗位、申请阶段、截止时间、面试安排、复盘、CSV 导入导出 |
-| `/app/projects`, `/app/articles` | 草稿、编辑预览、发布、撤回；项目另有 Planned/Completed 状态 |
-| `/app/materials`, `/app/profile` | 发布课程资料链接、个人介绍、联系邮箱、GitHub、简历链接 |
-| `/app/settings` | 数据备份、恢复预览、确认合并、旧浏览器进度迁移 |
-| `/portfolio/`, `/blog/` | 只显示已发布的项目/文章，搜索、详情、图表与测试证据 |
-
-原有 `/`、`/projects/`、`/about/`、`/learning/`、`/learning/code/`、`/projects/pathfinder/` 以及 12 个 PDF 地址保留。旧代码页的运行按钮现在进入认证后的 Notebook，原 `/api/run-python` 任意执行分支已删除。
-
-## Morrow Fields 在线竞技场
-
-`/arena/` 是原创像素风俯视竞技场：三张新地图、四套可选角色外观和 15 种功能不同的武器。跟随镜头把角色保持在战场中央，小地图显示全图和当前视野。大厅用六种像素卡片选择自由混战、感染者乱斗、队伍积分、夺旗、五命决斗或感染生存，并列出开放房间；大厅还可跨房聊天，进入比赛后可在房间聊天。玩家从地图固定补给点拾取武器箱，弹药会保留在右侧武器栏；WASD 移动、鼠标瞄准和射击、`1–0 / N / M / H / J / L` 切换武器、R 装填、右键跳跃闪避、Q/E 使用技能、F 蓄力瞄准。人物和弹体速度经过运行时节奏调整，导弹更慢、跟踪转向更弱。HUD 会显示能量条，技能消耗能量并自动回复。H 是直线治疗光束，J 是能量光束，按住 Y 发射能量球，光束击中能量球会触发连锁爆炸。点选升级后可按 Space 确认，V/X/C 也能直接购买对应升级。每 200 未消费战绩可用 1 个技能点升级生命、速度或武器。战后可保存并加载带暂停/时间轴的短回放；大厅输入房间码可以直接观战，旁观者不占玩家容量。服务器负责移动、射击、弹药、拾取、碰撞、伤害、复活和计分，客户端只发送输入。普通、队伍和夺旗房间最多 20 名人类玩家；感染模式最多 24 人；五命决斗限制 2 人，机器人不占真人名额。当前更新历史和旧版本清理记录见 [`docs/UPDATE_HISTORY.md`](docs/UPDATE_HISTORY.md)。
-
-### 只在本机游玩
-
-本机直接打开 `http://127.0.0.1:8082/arena/`。如果本地服务没有运行，执行：
+需要 Node.js 22+ 和 Python 3.13+。在项目目录执行：
 
 ```powershell
 .\start-arena-local.ps1 -Build
 ```
 
-停止本地服务：
+然后打开 <http://127.0.0.1:8082/arena/>。停止游戏服务：
 
 ```powershell
 .\stop-arena-local.ps1
 ```
 
-清理已确认的 Arena 缓存、空日志和旧的中间延迟报告：
+### 浏览器测试
 
 ```powershell
-$python = & .\tools\Find-Python.ps1
-& $python -B tools\cleanup_arena_workspace.py --dry-run
-& $python -B tools\cleanup_arena_workspace.py
+npm run test:browser -- tests/arena.spec.ts
 ```
 
-新房间会自动生成机器人，可以单机练习；填写同一个房间码也可以让同一台电脑上的多个浏览器窗口进入同一局。
+<a id="en"></a>
 
-### 在同一局域网游玩
+## English
 
-先运行 `npm run build`。在管理员 PowerShell 执行 `.\open-arena-lan-firewall.ps1 -Port 8080`，再用普通 PowerShell 执行 `.\start-arena.ps1 -Port 8080`。启动器会选择当前电脑的私有 IPv4，只允许本地子网通过防火墙。其他玩家打开它打印的 `http://<局域网地址>:8080/arena/`，输入同一个房间码或使用邀请链接即可。
+Morrow Fields is an original pixel-art, top-down online arena game. Move through forests, rivers, bridges, and ruins, collect weapons and supplies, and fight other players or bots in real time.
 
-### 让异地玩家加入
+![Morrow Fields arena](output/playwright/arena-effects-resources-2026-10-02.png)
 
-临时联机测试可使用 Cloudflare Quick Tunnel（需先安装 `cloudflared`）。推荐直接运行自动记录 URL/PID/健康检查的脚本：
+### Features
+
+- Three maps: Mosswood Crossing, Sunvale Orchard, and Redleaf Ruins.
+- Six modes: Free-for-All, Infection Deathmatch, Team Deathmatch, Capture the Flag, Five-Life Duel, and Infection Survival.
+- Fifteen weapons with different roles, including close-range weapons, explosives, seeker weapons, energy beams, and healing weapons.
+- Weapons, health packs, and armor spawn at fixed supply points and return after pickup.
+- Rocks, crates, trees, and spikes block players and projectiles; grass can hide players without blocking weapons.
+- Players inside the same grass patch can see one another. Firing or taking damage reveals a hidden player for three seconds.
+- Missiles use layered pixel explosions, debris, smoke, screen flashes, and camera shake.
+- Room-code multiplayer, bot opponents, spectating, room chat, and short replays are supported.
+- High-DPI canvas rendering keeps the pixel-art scene sharp on high-resolution displays.
+
+### Maps
+
+| Map | Environment | Tactical character |
+| --- | --- | --- |
+| Mosswood Crossing | Forest and a vertical river | Bridges, grass, and scattered cover support flanking and ambushes |
+| Sunvale Orchard | Orchard and a horizontal river | Multiple bridges connect both sides and make the center contested |
+| Redleaf Ruins | Red ruins and shallow crossings | Ruin walls, grass, and supply points create layered battle routes |
+
+### Controls
+
+| Action | Key |
+| --- | --- |
+| Move | `WASD` |
+| Aim / Fire | Mouse movement / Left mouse button |
+| Dash | Right mouse button |
+| Shield | `Q` |
+| Repair health | `E` |
+| Reload | `R` |
+| Switch weapon | `1–0`, `N`, `M`, `H`, `J`, `L` |
+| Charge aim | `F` |
+| Alternate fire | `Y` |
+| Choose an upgrade | `V`, `X`, or `C`, then press `Space` to confirm |
+
+### Run locally
+
+Node.js 22+ and Python 3.13+ are required. From the project directory, run:
 
 ```powershell
-.\start-arena-public.ps1 -Build
+.\start-arena-local.ps1 -Build
 ```
 
-脚本会把运行记录写入 `output/arena-validation/public-runtime.json`；结束临时联机时运行 `.\stop-arena-public.ps1`，脚本会核对记录的命令行后再停止对应进程。不要复用旧的 8081 手动启动方式；旧版本过程已经整理到 [`docs/UPDATE_HISTORY.md`](docs/UPDATE_HISTORY.md)。把脚本打印的临时 HTTPS/WSS 地址和房间码发给玩家即可。临时隧道没有可用性保证，停止 cloudflared 后链接失效；任何拿到链接的人都能访问。详见 [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)。
-
-需要稳定异地游玩时，仓库含有 `render.yaml` 和 `Dockerfile.arena`。在 Render 将此仓库作为 Blueprint 部署后，打开分配给服务的 `https://<服务名>.onrender.com/arena/`。房间存在单个服务进程的内存中，重启会清空；普通、队伍和夺旗房间最多 20 名人类玩家，感染模式最多 24 人，决斗限制 2 人。部署需要你自己的 Render 账户完成仓库授权和创建服务；本地改动本身不会自动发布到公网。
-
-详细的 Docker、健康检查、WSS 和重启验收步骤见 [`docs/ARENA_DEPLOYMENT.md`](docs/ARENA_DEPLOYMENT.md)。
-
-
-项目架构字段支持 Mermaid，例如：
-
-```text
-flowchart LR
-  Browser --> FastAPI
-  FastAPI --> SQLite
-  FastAPI --> Codex
-```
-
-代码、日志、用户笔记不会因为切换界面语言而被机器翻译或覆盖。界面有中文/英文和深浅主题；课程路线双语，教学代码的解释与注释以中文为主，保留英文技术词。
-
-## Notebook 学习内容
-
-源码在 `notebooks/week-01.ipynb` 到 `week-12.ipynb`，生成器 `tools/generate_notebooks.py` 可重新生成**课程模板**，不会覆盖数据库里的个人编辑。每周包括原理解释、带注释主体实现、独立练习、参考实现与断言。先尝试练习，再读答案。
-
-1. Python 工程、类型、异常、JSON/CSV、Todo 仓储与 Git。
-2. FastAPI、Pydantic、CRUD、HTTP 状态与真实接口测试。
-3. SQLAlchemy、主外键、JOIN、分页、索引、事务回滚和持久化。
-4. Mock、unittest、Docker/Compose/CI 配置与交付边界。
-5. NumPy/Pandas、公开数据集、Pipeline、交叉验证、模型比较和错误分析。
-6. PyTorch 手写数字图像分类、训练/验证、曲线、checkpoint 和独立推理。
-7. Attention 数值计算、向量归一化、TF-IDF/SVD 检索基线与搜索 API。
-8. 来源保留、extractive QA 基线、拒答、历史与 30 道合成回归题。
-9. 分层接口、AsyncMock、超时、有限重试、上传校验、日志脱敏。
-10. TTL 缓存、身份隔离、异步队列、健康检查与架构。
-11. README、证据审计、英文 bullet 与 STAR 草稿。
-12. BFS 边界、Python 常见问题、申请 CSV 与模拟面试追踪。
-
-这些是可运行教学实验，不会替你完成真实 GitHub CI、云部署、简历事实填写或求职申请。第 7 周本地基线不是预训练 embedding 模型，第 8 周离线实验不是 LLM；真正的模型问答在 Codex 助手中。原 PDF 保留，未在这次将其重写为完整教材。阅读代码不等于掌握全部知识，需要独立练习与项目验收。
-
-## 本机 Codex
-
-参考 [官方 app-server 文档](https://developers.openai.com/codex/app-server)。后端通过 stdio JSON-RPC 管理独立子进程，沿用本机模型、服务商与可用认证。它不能接管当前桌面对话，不复制凭据，也不是离线模型。
-
-在 Codex 助手搜索并勾选来源，查看片段和代码后发送。只发送当前问题、选中内容及该网站会话历史，不默认读取求职记录。来源编号经服务端核对；编号真实不等于答案一定正确，仍可点击文件页码检查证据。
-
-如果显示 unavailable：在终端检查 `codex --version`、`codex app-server --help`，按 Codex 官方登录流程完成认证，再点击重新检查。不要把密码、API Key 或认证文件粘贴到网站。超时/服务错误不自动重放请求，避免额外操作或重复计费。
-
-## 数据与恢复
-
-所有私人数据保存在 `.workbench/workbench.db`，内核输出文件在 `.workbench/kernels/`。不要删除 `.workbench` 来升级。JSON 备份不含管理员密码、会话、Codex 凭据或内核输出文件。恢复会按 ID 合并并覆盖匹配记录，先导出一份当前备份。
-
-旧 localStorage 进度需要预览后确认，只生成旧里程碑，不自动勾选新版章节。跨安装导入的 Codex 历史只读，须新建网站会话；不会借备份导入任意桌面会话。
-
-## 验证
+Open <http://127.0.0.1:8082/arena/> in a browser. Stop the local server with:
 
 ```powershell
-npm run typecheck
-npm run test
-npm run test:browser
+.\stop-arena-local.ps1
 ```
 
-最后一项会创建临时网站会话并调用真实本机 Codex，可能消耗当前服务额度；所有集成测试使用临时数据目录。测试报告和截图在 `output/`，详细记录见 [测试报告](docs/TESTING.md)。
+### Browser tests
 
-架构、数据库和权限说明见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)。Notebook 是管理员本地代码执行，不是恶意代码隔离环境；此服务保持仅本机访问，公开部署应把作品集与执行服务分离。
+```powershell
+npm run test:browser -- tests/arena.spec.ts
+```
