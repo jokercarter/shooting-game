@@ -103,6 +103,7 @@ MAPS = {
             # A short river-bank block preserves a clean ricochet angle and
             # keeps the long sightline from becoming completely open.
             [438, 278, 12, 22],
+            [430, 326, 24, 16], [506, 348, 24, 16], [462, 402, 24, 16],
         ],
         "props": [
             {"kind": "tree", "x": 74, "y": 108, "size": 42}, {"kind": "tree", "x": 120, "y": 180, "size": 38},
@@ -225,6 +226,7 @@ MAPS = {
             [792, 490, 46, 22], [846, 522, 22, 44], [804, 580, 46, 22],
             [382, 492, 28, 20], [566, 488, 28, 20], [426, 566, 26, 20],
             [506, 566, 26, 20],
+            [430, 360, 24, 16], [506, 382, 24, 16], [462, 432, 24, 16],
         ],
         "props": [
             {"kind": "tree", "x": 68, "y": 220, "size": 42}, {"kind": "tree", "x": 890, "y": 412, "size": 40},
