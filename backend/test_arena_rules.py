@@ -45,6 +45,23 @@ def test_obstacle_layout_uses_many_short_chunks_instead_of_only_long_walls():
         assert any(width < 180 and height < 180 for _, _, width, height in map_def["obstacles"])
 
 
+def test_obstacle_layout_has_no_overlap_or_sub_character_gap():
+    """Every visible gap is wide enough for the server collision circle."""
+    for map_id, map_def in arena.MAPS.items():
+        obstacles = map_def["obstacles"]
+        for index, (x, y, width, height) in enumerate(obstacles):
+            for other in obstacles[index + 1:]:
+                other_x, other_y, other_width, other_height = other
+                overlap_width = min(x + width, other_x + other_width) - max(x, other_x)
+                overlap_height = min(y + height, other_y + other_height) - max(y, other_y)
+                assert not (overlap_width > 0 and overlap_height > 0), (map_id, index, other)
+                horizontal_gap = max(other_x - (x + width), x - (other_x + other_width), 0)
+                vertical_gap = max(other_y - (y + height), y - (other_y + other_height), 0)
+                clearance = math.hypot(horizontal_gap, vertical_gap)
+                assert clearance == 0 or clearance >= arena.MIN_WALKABLE_GAP, \
+                    (map_id, index, other, clearance)
+
+
 def test_river_blocks_foot_movement_but_bridge_is_walkable():
     water = arena.MAPS["tidal"]["water"][0]
     bridge = arena.MAPS["tidal"]["bridges"][0]

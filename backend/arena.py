@@ -103,7 +103,9 @@ MAPS = {
             # A short river-bank block preserves a clean ricochet angle and
             # keeps the long sightline from becoming completely open.
             [438, 278, 12, 22],
-            [430, 326, 24, 16], [506, 348, 24, 16], [462, 402, 24, 16],
+            # Keep the center fragments on the banks, never in the vertical
+            # river channel, so the crossings remain readable and open.
+            [400, 326, 24, 16], [540, 348, 24, 16], [350, 402, 24, 16],
         ],
         "props": [
             {"kind": "tree", "x": 74, "y": 108, "size": 42}, {"kind": "tree", "x": 120, "y": 180, "size": 38},
@@ -226,7 +228,8 @@ MAPS = {
             [792, 490, 46, 22], [846, 522, 22, 44], [804, 580, 46, 22],
             [382, 492, 28, 20], [566, 488, 28, 20], [426, 566, 26, 20],
             [506, 566, 26, 20],
-            [430, 360, 24, 16], [506, 382, 24, 16], [462, 432, 24, 16],
+            # The lower fragment stays above the horizontal river bank.
+            [430, 360, 24, 16], [506, 382, 24, 16], [462, 382, 24, 16],
         ],
         "props": [
             {"kind": "tree", "x": 68, "y": 220, "size": 42}, {"kind": "tree", "x": 890, "y": 412, "size": 40},
@@ -416,11 +419,15 @@ def _trim_obstacle_overlaps(rectangles):
 
 
 def _close_tight_obstacle_gaps(rectangles):
-    """Join sub-character-width gaps so they read as one wall cluster.
+    """Join every sub-character-width gap into the surrounding wall cluster.
 
-    A positive gap is kept only when a player can actually pass through it.
-    Smaller gaps are closed by extending an adjacent chunk to the other edge;
-    the overlap trimmer runs after this step, so the result never intersects.
+    Slay-style cover is built from short blocks, but diagonal corners must not
+    leave a tempting-looking slot that is narrower than the player's collision
+    circle.  Treat the Euclidean corner distance as the clearance too.  When a
+    gap is too small, extend the earlier block along each separating axis until
+    the two blocks touch.  The overlap trimmer runs after each extension, so the
+    resulting collision rectangles remain disjoint while the visual cluster is
+    intentionally welded together.
     """
     closed = [list(rectangle) for rectangle in rectangles]
     for _ in range(max(2, len(closed))):
@@ -429,22 +436,22 @@ def _close_tight_obstacle_gaps(rectangles):
             x, y, width, height = closed[left_index]
             for right_index in range(left_index + 1, len(closed)):
                 other_x, other_y, other_width, other_height = closed[right_index]
-                vertical_overlap = min(y + height, other_y + other_height) - max(y, other_y)
-                horizontal_overlap = min(x + width, other_x + other_width) - max(x, other_x)
-                if vertical_overlap >= NAVIGATION_RADIUS * 2:
-                    if x + width < other_x and other_x - (x + width) < MIN_WALKABLE_GAP:
+                horizontal_gap = max(other_x - (x + width), x - (other_x + other_width), 0)
+                vertical_gap = max(other_y - (y + height), y - (other_y + other_height), 0)
+                clearance = math.hypot(horizontal_gap, vertical_gap)
+                if 0 < clearance < MIN_WALKABLE_GAP:
+                    # Extend the rectangle that appears first in the authored
+                    # order toward the later rectangle.  This preserves the
+                    # hand-placed rhythm while welding only the tiny gap.
+                    if other_x > x + width:
                         closed[left_index][2] = other_x - x
-                        changed = True
-                    elif other_x + other_width < x and x - (other_x + other_width) < MIN_WALKABLE_GAP:
+                    elif x > other_x + other_width:
                         closed[right_index][2] = x - other_x
-                        changed = True
-                if horizontal_overlap >= NAVIGATION_RADIUS * 2:
-                    if y + height < other_y and other_y - (y + height) < MIN_WALKABLE_GAP:
+                    if other_y > y + height:
                         closed[left_index][3] = other_y - y
-                        changed = True
-                    elif other_y + other_height < y and y - (other_y + other_height) < MIN_WALKABLE_GAP:
+                    elif y > other_y + other_height:
                         closed[right_index][3] = y - other_y
-                        changed = True
+                    changed = True
                 if changed:
                     break
             if changed:

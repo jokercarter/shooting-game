@@ -82,8 +82,17 @@
   function generatedImage(group,key){const image=generatedAssets[group]?.get(key);return image&&image.complete&&image.naturalWidth>0?image:null}
   function drawGeneratedObstacle(key,x,y,w,h,fit=1){
     const image=generatedImage('obstacles',key);if(!image)return false;
-    const scale=Math.max(w/image.naturalWidth,h/image.naturalHeight)*fit,dw=image.naturalWidth*scale,dh=image.naturalHeight*scale;
-    ctx.save();ctx.imageSmoothingEnabled=false;ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(image,Math.round(x+(w-dw)/2),Math.round(y+(h-dh)/2),Math.round(dw),Math.round(dh));ctx.restore();return true;
+    // Every collision rectangle owns one complete sprite.  Contain the image
+    // inside its rectangle instead of clipping a sprite atlas at the wall
+    // edge; this keeps each crate, bush, barricade, and stone block readable.
+    const rotate=h>w*1.35 && (key==='stoneAi'||key==='barricadeAi');
+    const sourceWidth=rotate?image.naturalHeight:image.naturalWidth;
+    const sourceHeight=rotate?image.naturalWidth:image.naturalHeight;
+    const scale=Math.min(w/sourceWidth,h/sourceHeight)*fit;
+    const dw=Math.max(2,Math.round(sourceWidth*scale)),dh=Math.max(2,Math.round(sourceHeight*scale));
+    ctx.save();ctx.imageSmoothingEnabled=false;ctx.translate(Math.round(x+w/2),Math.round(y+h/2));
+    if(rotate)ctx.rotate(Math.PI/2);
+    ctx.drawImage(image,Math.round(-dw/2),Math.round(-dh/2),dw,dh);ctx.restore();return true;
   }
   function drawSlayWall(x,y,w,h,variant=0,palette){
     // Slay-style masonry: a quiet grout bed plus offset, individually chipped
@@ -1133,7 +1142,7 @@
       // AI-drawn obstacle sprites are distributed by cluster index so the
       // map reads as a hand-placed Slay.one arena instead of one repeated wall.
       const spriteKey=index%13===0?'barricadeAi':index%11===0?'bushAi':index%7===0?'cratesAi':'stoneAi';
-      if(!drawGeneratedObstacle(spriteKey,x,y,w,h,.86)){
+      if(!drawGeneratedObstacle(spriteKey,x,y,w,h,.98)){
         if(index%7===0)drawCrateStack(x,y,w,h,index);
         else if(map==='ember')drawRuinObstacle(x,y,w,h,index);
         else drawSlayWall(x,y,w,h,index,map==='glass'
