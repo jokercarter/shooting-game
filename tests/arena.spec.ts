@@ -81,6 +81,33 @@ test('reconnects after a transient network drop',async({page,request})=>{
  await expect.poll(async()=>(await (await request.get('/api/arena/rooms')).json()).length,{timeout:6000}).toBe(0);
 });
 
+test('missile explosion shake attenuates with distance',async({page})=>{
+ await page.goto('/arena/?test-reconnect');
+ await page.getByLabel('玩家名称').fill('ShakePilot');
+ await page.getByRole('button',{name:'进入战场'}).click();
+ await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
+ const measurements=await page.evaluate(()=>{
+  const api=window as typeof window & {
+   __morrowTestLocalPlayer?:()=>{x:number;y:number}|null;
+   __morrowTestTriggerExplosion?:(options:{x:number;y:number;blast:number})=>number;
+  };
+  const player=api.__morrowTestLocalPlayer?.();
+  if(!player||!api.__morrowTestTriggerExplosion)return null;
+  const blast=72;
+  return {
+   near:api.__morrowTestTriggerExplosion({x:player.x+12,y:player.y,blast}),
+   middle:api.__morrowTestTriggerExplosion({x:player.x+220,y:player.y,blast}),
+   far:api.__morrowTestTriggerExplosion({x:player.x+800,y:player.y,blast}),
+  };
+ });
+ expect(measurements).not.toBeNull();
+ expect(measurements!.near).toBeGreaterThan(measurements!.middle);
+ expect(measurements!.middle).toBeGreaterThan(measurements!.far);
+ expect(measurements!.near).toBeGreaterThan(.9);
+ expect(measurements!.far).toBe(0);
+ await page.getByRole('button',{name:'返回大厅'}).click();
+});
+
 test('ten-player crowd keeps the private HUD patch responsive',async({page,request})=>{
  const pageErrors:string[]=[];
  page.on('pageerror',error=>pageErrors.push(error.message));
