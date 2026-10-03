@@ -89,15 +89,25 @@
   function drawGeneratedObstacle(key,x,y,w,h){
     const image=generatedImage('obstacles',key);if(!image)return false;
     // The server rectangle is the authoritative obstacle footprint.  Each
-    // selected atlas cell is a complete standalone sprite, so drawing it into
-    // this exact rectangle never clips a wall, crate, bush, or rock in half.
-    // Turn landscape sprites for vertical wall chunks so the whole silhouette
-    // still fills the same collision rectangle.
+    // selected atlas cell is a complete standalone sprite.  Long map chunks
+    // are filled with two or three complete sprites along their long axis so
+    // a square source cell is never stretched into a thin, clipped-looking
+    // wall or rock.
     const rotate=h>w*1.35;
-    const drawWidth=rotate?h:w,drawHeight=rotate?w:h;
+    const span=rotate?h:w,thickness=rotate?w:h;
+    const tileCount=Math.max(1,Math.min(4,Math.round(span/Math.max(1,thickness))));
+    const tileSpan=span/tileCount;
+    const sourceWidth=image.naturalWidth||1,sourceHeight=image.naturalHeight||1;
+    const fit=Math.min(tileSpan/sourceWidth,thickness/sourceHeight);
+    const drawWidth=Math.max(1,Math.round(sourceWidth*fit));
+    const drawHeight=Math.max(1,Math.round(sourceHeight*fit));
     ctx.save();ctx.imageSmoothingEnabled=false;ctx.translate(Math.round(x+w/2),Math.round(y+h/2));
     if(rotate)ctx.rotate(Math.PI/2);
-    ctx.drawImage(image,Math.round(-drawWidth/2),Math.round(-drawHeight/2),Math.round(drawWidth),Math.round(drawHeight));ctx.restore();return true;
+    for(let tile=0;tile<tileCount;tile++){
+      const tileCenter=-span/2+(tile+.5)*tileSpan;
+      ctx.drawImage(image,Math.round(tileCenter-drawWidth/2),Math.round(-drawHeight/2),drawWidth,drawHeight);
+    }
+    ctx.restore();return true;
   }
   function drawSlayWall(x,y,w,h,variant=0,palette){
     // Slay-style masonry: a quiet grout bed plus offset, individually chipped
