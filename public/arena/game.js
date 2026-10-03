@@ -11,6 +11,7 @@
   setupCanvasResolution();window.addEventListener('resize',setupCanvasResolution);
   const WORLD_W = 3000, WORLD_H = 2000, WORLD_SCALE = 3.125;
   const CAMERA_ZOOM = 1.08;
+  const CAMERA_MOUSE_LOOK_AHEAD = 128;
   const miniMap = document.querySelector('#mini-map'), miniCtx = miniMap.getContext('2d');
   const ui = {
     start: document.querySelector('#start-screen'), startButton: document.querySelector('#start'), watchRoom: document.querySelector('#watch-room'),
@@ -218,8 +219,13 @@
       spectatorId=p?.id===own.id?null:p?.id||null;spectatorTarget=p?.id===own.id?null:p;
     }else{spectatorTarget=null;spectatorId=null}
     const point=p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?renderPoint(p):{x:WORLD_W/2,y:WORLD_H/2};
-    if(Math.hypot(point.x-cameraX,point.y-cameraY)>900){cameraX=point.x;cameraY=point.y}
-    else{cameraX+=(point.x-cameraX)*.18;cameraY+=(point.y-cameraY)*.18}
+    const mouseBiasX=Math.max(-1,Math.min(1,(mouse.x-W/2)/(W*.5)));
+    const mouseBiasY=Math.max(-1,Math.min(1,(mouse.y-H/2)/(H*.5)));
+    const viewHalfW=W/(2*CAMERA_ZOOM),viewHalfH=H/(2*CAMERA_ZOOM);
+    const targetX=Math.max(viewHalfW,Math.min(WORLD_W-viewHalfW,point.x+mouseBiasX*CAMERA_MOUSE_LOOK_AHEAD));
+    const targetY=Math.max(viewHalfH,Math.min(WORLD_H-viewHalfH,point.y+mouseBiasY*CAMERA_MOUSE_LOOK_AHEAD));
+    if(Math.hypot(point.x-cameraX,point.y-cameraY)>900){cameraX=targetX;cameraY=targetY}
+    else{cameraX+=(targetX-cameraX)*.18;cameraY+=(targetY-cameraY)*.18}
   }
   function screenToWorld(x,y){return{x:Math.max(0,Math.min(WORLD_W,cameraX+(x-W/2)/CAMERA_ZOOM)),y:Math.max(0,Math.min(WORLD_H,cameraY+(y-H/2)/CAMERA_ZOOM))}}
   function visibleRect(x,y,w=0,h=0,padding=64){

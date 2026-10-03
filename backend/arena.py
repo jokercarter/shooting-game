@@ -64,7 +64,8 @@ PROJECTILE_SPEED_SCALE = .85
 MISSILE_SPEED_SCALE = .82
 HOMING_TURN_SCALE = .70
 MISSILE_KINDS = {"rocket", "seeker", "cursor", "bug"}
-PORTAL_COOLDOWN_SECONDS = .24
+MISSILE_BLAST_SCALE = 1.30
+PLAYER_PORTAL_COOLDOWN_SECONDS = 5.0
 PORTAL_EXIT_PADDING = 20
 
 # Original arenas with a compact pixel-art forest and ruins theme.
@@ -939,14 +940,12 @@ def _maybe_teleport_player(room: Room, player: Player, now: float):
     if not exit_point:
         return False
     player.x, player.y = exit_point
-    player.portal_cooldown_until = now + PORTAL_COOLDOWN_SECONDS
+    player.portal_cooldown_until = now + PLAYER_PORTAL_COOLDOWN_SECONDS
     return True
 
 
 def _maybe_teleport_projectile(room: Room, projectile: dict, old_x: float, old_y: float,
                                now: float):
-    if now < projectile.get("portal_cooldown_until", 0):
-        return False
     portal = _portal_at(room.map_id, projectile["x"], projectile["y"], projectile.get("r", 4))
     if not portal or _portal_at(room.map_id, old_x, old_y, projectile.get("r", 4)) is portal:
         return False
@@ -955,7 +954,6 @@ def _maybe_teleport_projectile(room: Room, projectile: dict, old_x: float, old_y
     if not exit_point:
         return False
     projectile["x"], projectile["y"] = exit_point
-    projectile["portal_cooldown_until"] = now + PORTAL_COOLDOWN_SECONDS
     return True
 
 
@@ -1587,7 +1585,9 @@ def _spawn_projectile(room: Room, player: Player, now: float):
                   (8 if weapon["kind"] in {"arc", "rocket", "seeker", "cursor", "bug", "energy_orb"} else 4)),
             "life": flight_life, "total_life": flight_life, "kind": weapon["kind"], "damage": damage,
             "falloff": weapon.get("falloff", 0),
-            "blast": weapon.get("blast", 0), "bounces": weapon.get("bounces", 0),
+            "blast": (weapon.get("blast", 0) * MISSILE_BLAST_SCALE
+                       if weapon["kind"] in MISSILE_KINDS else weapon.get("blast", 0)),
+            "bounces": weapon.get("bounces", 0),
             "turn": weapon.get("turn", 0) * HOMING_TURN_SCALE,
             "pierce": weapon.get("pierce", 0),
             "combo_damage": weapon.get("combo_damage", 0),
