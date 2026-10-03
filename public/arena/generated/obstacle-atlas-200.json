@@ -1,0 +1,489 @@
+{
+  "source": "obstacle-atlas-200.png",
+  "grid": [
+    20,
+    10
+  ],
+  "selected": [
+    {
+      "asset": "obstacle-atlas-01.png",
+      "atlas_row": 0,
+      "atlas_column": 0,
+      "cell_margins": [
+        10,
+        15,
+        13,
+        9
+      ],
+      "size": [
+        89,
+        71
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-02.png",
+      "atlas_row": 0,
+      "atlas_column": 1,
+      "cell_margins": [
+        5,
+        25,
+        11,
+        15
+      ],
+      "size": [
+        88,
+        71
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-03.png",
+      "atlas_row": 0,
+      "atlas_column": 2,
+      "cell_margins": [
+        6,
+        11,
+        10,
+        5
+      ],
+      "size": [
+        89,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-04.png",
+      "atlas_row": 0,
+      "atlas_column": 4,
+      "cell_margins": [
+        8,
+        7,
+        13,
+        4
+      ],
+      "size": [
+        89,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-05.png",
+      "atlas_row": 0,
+      "atlas_column": 7,
+      "cell_margins": [
+        6,
+        10,
+        13,
+        7
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-06.png",
+      "atlas_row": 0,
+      "atlas_column": 8,
+      "cell_margins": [
+        3,
+        7,
+        10,
+        4
+      ],
+      "size": [
+        88,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-07.png",
+      "atlas_row": 0,
+      "atlas_column": 9,
+      "cell_margins": [
+        4,
+        16,
+        7,
+        5
+      ],
+      "size": [
+        89,
+        76
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-08.png",
+      "atlas_row": 0,
+      "atlas_column": 10,
+      "cell_margins": [
+        9,
+        16,
+        13,
+        6
+      ],
+      "size": [
+        88,
+        77
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-09.png",
+      "atlas_row": 0,
+      "atlas_column": 11,
+      "cell_margins": [
+        8,
+        14,
+        7,
+        3
+      ],
+      "size": [
+        86,
+        78
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-10.png",
+      "atlas_row": 0,
+      "atlas_column": 15,
+      "cell_margins": [
+        9,
+        14,
+        9,
+        6
+      ],
+      "size": [
+        89,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-11.png",
+      "atlas_row": 0,
+      "atlas_column": 16,
+      "cell_margins": [
+        7,
+        16,
+        9,
+        7
+      ],
+      "size": [
+        87,
+        75
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-12.png",
+      "atlas_row": 0,
+      "atlas_column": 18,
+      "cell_margins": [
+        11,
+        7,
+        11,
+        12
+      ],
+      "size": [
+        87,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-13.png",
+      "atlas_row": 0,
+      "atlas_column": 19,
+      "cell_margins": [
+        7,
+        8,
+        8,
+        6
+      ],
+      "size": [
+        88,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-14.png",
+      "atlas_row": 1,
+      "atlas_column": 1,
+      "cell_margins": [
+        7,
+        10,
+        11,
+        6
+      ],
+      "size": [
+        86,
+        84
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-15.png",
+      "atlas_row": 1,
+      "atlas_column": 2,
+      "cell_margins": [
+        7,
+        9,
+        10,
+        6
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-16.png",
+      "atlas_row": 1,
+      "atlas_column": 3,
+      "cell_margins": [
+        7,
+        19,
+        8,
+        7
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-17.png",
+      "atlas_row": 1,
+      "atlas_column": 4,
+      "cell_margins": [
+        10,
+        5,
+        15,
+        3
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-18.png",
+      "atlas_row": 1,
+      "atlas_column": 9,
+      "cell_margins": [
+        5,
+        9,
+        12,
+        4
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-19.png",
+      "atlas_row": 1,
+      "atlas_column": 10,
+      "cell_margins": [
+        5,
+        7,
+        7,
+        3
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-20.png",
+      "atlas_row": 1,
+      "atlas_column": 15,
+      "cell_margins": [
+        10,
+        14,
+        7,
+        3
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-21.png",
+      "atlas_row": 1,
+      "atlas_column": 16,
+      "cell_margins": [
+        9,
+        13,
+        7,
+        11
+      ],
+      "size": [
+        89,
+        77
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-22.png",
+      "atlas_row": 2,
+      "atlas_column": 0,
+      "cell_margins": [
+        6,
+        14,
+        8,
+        5
+      ],
+      "size": [
+        89,
+        88
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-23.png",
+      "atlas_row": 2,
+      "atlas_column": 2,
+      "cell_margins": [
+        4,
+        8,
+        10,
+        5
+      ],
+      "size": [
+        89,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-24.png",
+      "atlas_row": 2,
+      "atlas_column": 3,
+      "cell_margins": [
+        4,
+        18,
+        8,
+        12
+      ],
+      "size": [
+        89,
+        86
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-25.png",
+      "atlas_row": 2,
+      "atlas_column": 5,
+      "cell_margins": [
+        4,
+        11,
+        11,
+        4
+      ],
+      "size": [
+        88,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-26.png",
+      "atlas_row": 2,
+      "atlas_column": 8,
+      "cell_margins": [
+        3,
+        13,
+        10,
+        3
+      ],
+      "size": [
+        88,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-27.png",
+      "atlas_row": 2,
+      "atlas_column": 12,
+      "cell_margins": [
+        8,
+        10,
+        7,
+        4
+      ],
+      "size": [
+        89,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-28.png",
+      "atlas_row": 2,
+      "atlas_column": 14,
+      "cell_margins": [
+        12,
+        13,
+        6,
+        3
+      ],
+      "size": [
+        88,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-29.png",
+      "atlas_row": 2,
+      "atlas_column": 15,
+      "cell_margins": [
+        10,
+        11,
+        11,
+        3
+      ],
+      "size": [
+        89,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-30.png",
+      "atlas_row": 2,
+      "atlas_column": 16,
+      "cell_margins": [
+        6,
+        15,
+        7,
+        3
+      ],
+      "size": [
+        89,
+        77
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-31.png",
+      "atlas_row": 2,
+      "atlas_column": 19,
+      "cell_margins": [
+        11,
+        18,
+        10,
+        3
+      ],
+      "size": [
+        85,
+        89
+      ]
+    },
+    {
+      "asset": "obstacle-atlas-32.png",
+      "atlas_row": 3,
+      "atlas_column": 1,
+      "cell_margins": [
+        5,
+        26,
+        11,
+        10
+      ],
+      "size": [
+        88,
+        89
+      ]
+    }
+  ]
+}

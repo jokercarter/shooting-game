@@ -36,7 +36,7 @@ PLAYER_DYNAMIC_VIEW_FIELDS = frozenset({
     "id", "x", "y", "angle", "hp", "weapon", "alternate_fire",
     "skill_points", "max_hp", "armor", "max_armor", "score", "kills", "deaths", "shielded",
     "jumping", "dead", "respawn_in", "invincible", "hidden", "lives",
-    "cover_exposed", "captures", "souls", "carried_flag",
+    "cover_exposed", "captures", "souls", "carried_flag", "switch_remaining",
 })
 ROOM_CAPACITIES = {
     "normal": 20,
@@ -253,7 +253,7 @@ MAPS = {
         "pickup_points": [
             [80, 80, "lobber"], [480, 80, "flame"], [880, 80, "rotary"], [80, 320, "flare"],
             [880, 320, "prism"], [80, 560, "seeker"], [480, 560, "cursor"], [880, 560, "scatter"],
-            [680, 220, "rapid_flare"], [280, 420, "rapid_lobber"],
+            [680, 220, "rapid_flare"], [268, 420, "rapid_lobber"],
             [680, 420, "healing_wave"], [380, 240, "energy_sniper"], [580, 400, "bug"],
         ],
         "support_points": [
@@ -476,8 +476,11 @@ def _geometry_in_water(map_def, x, y, radius):
             y + radius > wy and y - radius < wy + height
         if not inside_water:
             continue
-        if any(x + radius * .72 > bx and x - radius * .72 < bx + bw and
-               y + radius * .72 > by and y - radius * .72 < by + bh
+        # A bridge is walkable only while the player's collision footprint is
+        # fully supported by it.  Merely touching a bridge used to let a
+        # player slide into the river along its edge.
+        if any(x - radius >= bx and x + radius <= bx + bw and
+               y - radius >= by and y + radius <= by + bh
                for bx, by, bw, bh in map_def.get("bridges", ())):
             continue
         return True
@@ -875,7 +878,11 @@ def in_water(map_id: str, x: float, y: float, radius: float = 0):
     water_regions = MAPS[map_id].get("water", ())
     bridges = MAPS[map_id].get("bridges", ())
     return any(_inside_region(x, y, water, radius) and
-               not any(_inside_region(x, y, bridge, radius * .72) for bridge in bridges)
+               not any(x - radius >= bridge[0] and
+                       x + radius <= bridge[0] + bridge[2] and
+                       y - radius >= bridge[1] and
+                       y + radius <= bridge[1] + bridge[3]
+                       for bridge in bridges)
                for water in water_regions)
 
 
@@ -1109,6 +1116,7 @@ def player_view(player: Player, map_id: str, viewer_id: str | None = None,
         "upgrades": player.upgrades if owner_view else None,
         "score": player.score, "kills": player.kills,
         "deaths": player.deaths, "shielded": player.shield_until > now,
+        "switch_remaining": round(max(0, player.switch_until - now), 2),
         "energy": round(player.energy, 1) if player.id == viewer_id else None,
         "jumping": player.jump_until > now,
         "dead": player.dead_until > now,
@@ -1514,7 +1522,27 @@ def _heal_player(room: Room, source: Player, target: Player, amount: float, now:
     return healed
 
 
+def _discard_empty_weapon(player: Player, weapon_key: str, now: float):
+    """Remove a finite-ammo pickup once its magazine and reserve are empty."""
+    if weapon_key == "pulse" or weapon_key not in player.owned_weapons:
+        return False
+    ammo = player.ammo.get(weapon_key)
+    if not ammo or ammo.get("mag", 0) > 0 or ammo.get("reserve", 0) > 0 or ammo.get("reload_until", 0) > now:
+        return False
+    player.owned_weapons.discard(weapon_key)
+    if player.weapon == weapon_key:
+        # Fall back to the infinite basic weapon.  The fallback itself still
+        # respects the normal switch delay so an empty pickup cannot become a
+        # free instant weapon swap.
+        player.weapon = "pulse"
+        player.alternate_fire = False
+        player.aim_started = 0
+        player.switch_until = max(player.switch_until, now + WEAPON_SWITCH_DELAY)
+    return True
+
+
 def _spawn_projectile(room: Room, player: Player, now: float):
+    fired_weapon_key = player.weapon
     base_weapon = WEAPONS.get(player.weapon, WEAPONS["pulse"])
     weapon = ({**base_weapon, **base_weapon["alternate"]}
               if player.alternate_fire and base_weapon.get("alternate") else base_weapon)
@@ -1530,6 +1558,8 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         if ammo["reserve"] >= 0:
             ammo["reserve"] -= loaded
         ammo["reload_until"] = 0
+        if _discard_empty_weapon(player, player.weapon, now):
+            return
     if not player.firing or now - player.last_shot < weapon["cooldown"]:
         return
     if ammo["mag"] == 0:
@@ -1553,6 +1583,8 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         ammo["mag"] -= 1
         if ammo["mag"] == 0 and ammo["reserve"] != 0:
             ammo["reload_until"] = now + weapon["reload"]
+        elif ammo["mag"] == 0:
+            _discard_empty_weapon(player, player.weapon, now)
     if weapon.get("self_heal"):
         _heal_player(room, player, player, weapon["self_heal"], now)
     aim_x, aim_y = player.aim_x, player.aim_y
@@ -1583,7 +1615,7 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         pellet_angle = angle + random.uniform(-weapon["spread"], weapon["spread"])
         room.next_id += 1
         projectile = {
-            "id": room.next_id, "owner": player.id, "weapon": player.weapon, "age": 0,
+            "id": room.next_id, "owner": player.id, "weapon": fired_weapon_key, "age": 0,
             "x": player.x + math.cos(pellet_angle) * 23, "y": player.y + math.sin(pellet_angle) * 23,
             "vx": math.cos(pellet_angle) * speed, "vy": math.sin(pellet_angle) * speed,
             "r": (max(1, weapon["size"]) if "size" in weapon else
