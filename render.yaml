@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: morrow-fields
+    runtime: docker
+    dockerfilePath: ./Dockerfile.arena
+    healthCheckPath: /health

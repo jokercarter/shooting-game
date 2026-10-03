@@ -1,0 +1,18 @@
+{
+  "displayName": "Morrow Fields LAN Arena",
+  "enabled": "True",
+  "profile": "Domain, Private, Public",
+  "direction": "Inbound",
+  "action": "Allow",
+  "localAddress": [
+    "10.0.0.100"
+  ],
+  "remoteAddress": [
+    "LocalSubnet"
+  ],
+  "protocol": "TCP",
+  "localPort": [
+    "8080"
+  ],
+  "program": "C:\\Users\\90631\\Desktop\\courses\\SWE+AI\\.venv\\Scripts\\python.exe"
+}

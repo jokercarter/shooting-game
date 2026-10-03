@@ -1,0 +1,13 @@
+{
+  "started_at": "2026-10-01T10:57:32.5981847Z",
+  "bind_address": "127.0.0.1",
+  "port": 8092,
+  "local_url": "http://127.0.0.1:8092/arena/",
+  "public_url": "https://coordinated-brick-housing-factor.trycloudflare.com/arena/",
+  "health_status": 200,
+  "server_pid": 81860,
+  "tunnel_pid": 74808,
+  "server_log": "C:\\Users\\90631\\Desktop\\courses\\SWE+AI\\output\\arena-validation\\public-runtime-server.out.log",
+  "tunnel_log": "C:\\Users\\90631\\Desktop\\courses\\SWE+AI\\output\\arena-validation\\public-runtime-tunnel.out.log",
+  "stopped_at": "2026-10-01T11:02:40.6838307Z"
+}

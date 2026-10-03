@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-02",
+  "verification": "manual Playwright CLI browser plus seven WebSocket peers",
+  "url": "http://127.0.0.1:8082/arena/",
+  "asset": "game.js v62",
+  "room": "SHAREV62",
+  "mode": "normal",
+  "map": "tidal",
+  "topology": "One browser client and seven same-host WebSocket clients; shared-state threshold reached.",
+  "room_players": "8 / 20",
+  "state_interval_ms": 11,
+  "input_interval_ms": 11,
+  "pickup": {
+    "weapon": "flare",
+    "map_point_world": [250, 1000],
+    "player_position_after_pickup": [251.1, 1005.4],
+    "owned_weapons": ["flare", "pulse"],
+    "ammo": {
+      "mag": 1,
+      "reserve": 7
+    }
+  },
+  "weapon_rack": "Slot 5 Comet Driver 1 / 7",
+  "performance_sample": {
+    "fps": 100,
+    "rtt_ms": 1,
+    "state_hz": 91
+  },
+  "screenshot": "../playwright/weapon-pickup-shared-state-v62-2026-10-02.png",
+  "browser_session_closed": true,
+  "rooms_after_disconnect": []
+}

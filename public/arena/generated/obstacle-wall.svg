@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="100" viewBox="0 0 180 100" shape-rendering="crispEdges"><ellipse cx="90" cy="88" rx="74" ry="8" fill="#0b1712" opacity=".45" />
+      <path d="M14 20l12-11h126l15 12v52l-14 13H27L14 73z" fill="#293a36" />
+      <path d="M23 22h134v44H23z" fill="#53655a" />
+      <g fill="#a3af8b">
+        <path d="M27 25h31v7H27zM67 25h39v7H67zM112 25h39v7H112z" />
+        <path d="M27 42h43v7H27zM76 42h31v7H76zM113 42h39v7H113z" />
+        <path d="M27 59h30v5H27zM63 59h44v5H63zM113 59h37v5H113z" />
+      </g>
+      <g fill="#72816d"><rect x="31" y="35" width="27" height="4" /><rect x="71" y="35" width="33" height="4" /><rect x="116" y="35" width="31" height="4" /></g>
+    </svg>

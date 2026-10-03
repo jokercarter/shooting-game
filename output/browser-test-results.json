@@ -1,0 +1,268 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\90631\\.codex\\workspace-deps\\SWE-AI\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "tests/arena.spec.ts"
+    ],
+    "configFile": "C:\\Users\\90631\\Desktop\\courses\\SWE+AI\\playwright.config.ts",
+    "rootDir": "C:/Users/90631/Desktop/courses/SWE+AI/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/90631/Desktop/courses/SWE+AI/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/90631/Desktop/courses/SWE+AI/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "output/browser-test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": {
+      "command": "\"C:\\Users\\90631\\.codex\\workspace-deps\\SWE-AI\\venv\\Scripts\\python.exe\" -B -m uvicorn backend.run:app --host 127.0.0.1 --port 4174",
+      "url": "http://127.0.0.1:4174/api/health",
+      "reuseExistingServer": false,
+      "env": {
+        "WORKBENCH_DATA": "tmp/browser-1790986260897"
+      },
+      "timeout": 30000
+    }
+  },
+  "suites": [
+    {
+      "title": "arena.spec.ts",
+      "file": "arena.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "public arena controls, crowd-aware room state and mobile lobby",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1651,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T00:11:04.893Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "807b057befe601acf025-0629567ba71e24741219",
+          "file": "arena.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "two local browser windows share one arena room",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1245,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T00:11:06.988Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "807b057befe601acf025-ce9021c2a99ab7e16b79",
+          "file": "arena.spec.ts",
+          "line": 40,
+          "column": 1
+        },
+        {
+          "title": "reconnects after a transient network drop",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 481,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T00:11:08.241Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "807b057befe601acf025-94361f0aae198f2a076f",
+          "file": "arena.spec.ts",
+          "line": 69,
+          "column": 1
+        },
+        {
+          "title": "ten-player crowd keeps the private HUD patch responsive",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5849,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "ten-player browser FPS: 60.2\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T00:11:08.735Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "807b057befe601acf025-ba26b06cdab9afc03ab6",
+          "file": "arena.spec.ts",
+          "line": 84,
+          "column": 1
+        },
+        {
+          "title": "display settings persist and live performance status is visible",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1081,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-03T00:11:14.593Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "807b057befe601acf025-fa66e32e1679a538e79a",
+          "file": "arena.spec.ts",
+          "line": 155,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-03T00:11:00.903Z",
+    "duration": 15733.534000000001,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

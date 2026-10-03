@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-02",
+  "url": "http://127.0.0.1:8082/arena/",
+  "flow": "fixed pickup -> lobber -> empty magazine -> automatic reload",
+  "target": [
+    438,
+    250,
+    "lobber"
+  ],
+  "after_first_shot": {
+    "mag": 0,
+    "reserve": 7,
+    "reload_remaining": 2.75
+  },
+  "console_errors": 0,
+  "room_count_after_disconnect": 0,
+  "health": "ok",
+  "assets": {
+    "game_js": "v42",
+    "game_css": "v21"
+  }
+}

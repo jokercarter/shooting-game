@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-02",
+  "verification": "manual Playwright CLI local match",
+  "url": "http://127.0.0.1:8082/arena/",
+  "asset": "game.js v62",
+  "room": "PICKUP62",
+  "mode": "duel",
+  "map": "tidal",
+  "pickup": {
+    "weapon": "rotary",
+    "map_point_world": [2562.5, 250],
+    "player_position_after_pickup": [2552.5, 249.9],
+    "owned_weapons": ["pulse", "rotary"],
+    "toast": "拾取了 Thorn Wheel"
+  },
+  "weapon_selection": {
+    "weapon": "rotary",
+    "hud_name": "THORN WHEEL",
+    "ammo": "15 / 50"
+  },
+  "performance_sample": {
+    "fps": 100,
+    "rtt_ms": 1,
+    "state_interval_ms": 50
+  },
+  "console_errors": 0,
+  "screenshot": "../playwright/weapon-pickup-fixed-2026-10-02.png",
+  "browser_session_closed": true
+}

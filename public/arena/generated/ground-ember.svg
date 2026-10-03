@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" shape-rendering="crispEdges"><defs><pattern id="grass-ember" width="24" height="24" patternUnits="userSpaceOnUse">
+      <rect width="24" height="24" fill="#554039" />
+      <path d="M2 17h4v-6h2v5h3M14 7h3v5h2M14 21h2v-4h3" fill="none" stroke="#a97554" stroke-width="2" />
+      <rect x="5" y="4" width="2" height="2" fill="#d29a61" />
+    </pattern>
+    </defs><rect width="24" height="24" fill="url(#grass-ember)" /></svg>

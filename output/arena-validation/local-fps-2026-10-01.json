@@ -1,0 +1,13 @@
+{
+  "url": "http://127.0.0.1:8082/arena/",
+  "duration_ms": 3002,
+  "frames": 181,
+  "fps": 60.293137908300714,
+  "page_errors": [],
+  "optimizations": [
+    "cached repeating ground texture per map",
+    "culled static and dynamic objects outside the camera view",
+    "throttled HUD DOM updates to 100ms",
+    "bounded particles, explosions, and muzzle flashes"
+  ]
+}

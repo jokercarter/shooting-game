@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" shape-rendering="crispEdges"><defs><pattern id="grass-glass" width="24" height="24" patternUnits="userSpaceOnUse">
+      <rect width="24" height="24" fill="#566b3e" />
+      <path d="M2 18h4v-6h2v5h3M14 8h2v4h3M17 21h2v-5h2" fill="none" stroke="#9eaf58" stroke-width="2" />
+      <rect x="8" y="3" width="2" height="2" fill="#d2ce77" />
+    </pattern>
+    </defs><rect width="24" height="24" fill="url(#grass-glass)" /></svg>

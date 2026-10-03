@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="80" viewBox="0 0 140 80" shape-rendering="crispEdges"><ellipse cx="70" cy="67" rx="56" ry="7" fill="#0b1712" opacity=".45" />
+      <rect x="15" y="50" width="110" height="10" fill="#2b2927" />
+      <g fill="#d6c56d" stroke="#3a3229" stroke-width="3">
+        <path d="M25 51l11-31 11 31zM51 51l11-39 11 39zM78 51l11-33 11 33zM104 51l10-26 10 26z" />
+      </g>
+    </svg>

@@ -1,0 +1,8 @@
+{
+  "base": "http://127.0.0.1:8082",
+  "initial_x": 55,
+  "moved_x": 66.0,
+  "movement_delta": 11.0,
+  "projectile_vx": 382.5,
+  "expected_pulse_runtime_speed": 382.5
+}

@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-02",
+  "url": "http://127.0.0.1:8082/arena/",
+  "connections": 17,
+  "before": {
+    "state_samples": 33,
+    "avg_bytes": 13765,
+    "p95_bytes": 14348
+  },
+  "after": {
+    "state_samples": 27,
+    "avg_bytes": 13502,
+    "p95_bytes": 13884
+  },
+  "remote_owned_weapons": [],
+  "remote_upgrades": null,
+  "remote_max_hp": 100,
+  "projectile_fields": "render whitelist only; target_id, hit_targets, turn, self_damage, knockback, distance_travelled, max_range omitted",
+  "console_errors": 0,
+  "room_count_after_disconnect": 0,
+  "health": "ok",
+  "assets": {
+    "game_js": "v47",
+    "game_css": "v22"
+  }
+}

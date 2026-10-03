@@ -1,0 +1,20 @@
+{
+  "dockerfile_exists": true,
+  "render_config_exists": true,
+  "quick_tunnel_launcher_exists": true,
+  "quick_tunnel_stop_exists": true,
+  "required_sources_present": true,
+  "frontend_build_stage": true,
+  "public_backend_only": true,
+  "port_uses_platform_value": true,
+  "docker_healthcheck": true,
+  "exec_entrypoint": true,
+  "render_docker_runtime": true,
+  "render_health_path": true,
+  "health_status": 200,
+  "health_payload": {
+    "status": "ok",
+    "service": "morrow-fields"
+  },
+  "preflight_passed": true
+}

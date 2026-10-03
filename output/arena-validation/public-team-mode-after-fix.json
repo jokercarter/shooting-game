@@ -1,0 +1,14 @@
+{
+  "mode": "team_dm",
+  "humans": 1,
+  "bots": 4,
+  "bot_zombies": 0,
+  "bot_teams": [
+    0,
+    1
+  ],
+  "weapon_count": 15,
+  "h_kind": "heal_beam",
+  "j_kind": "energy_ray",
+  "y_kind": "energy_orb"
+}

@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-02",
+  "url": "http://127.0.0.1:8082/arena/",
+  "connections": 17,
+  "duration_seconds": 4.2,
+  "before": {
+    "state_interval_ms": 100,
+    "state_samples": 34,
+    "state_median_ms": 120.7,
+    "state_p95_ms": 131.2,
+    "frame_avg_ms": 4.17,
+    "frame_p95_ms": 4.3,
+    "frames_over_25_ms": 0
+  },
+  "after": {
+    "state_interval_ms": 100,
+    "state_samples": 42,
+    "state_median_ms": 115.5,
+    "state_p95_ms": 128.4,
+    "frame_avg_ms": 4.17,
+    "frame_p95_ms": 4.3,
+    "frames_over_25_ms": 0
+  },
+  "change": "concurrent websocket broadcast plus monotonic next-state deadline",
+  "console_errors": 0,
+  "room_count_after_disconnect": 0,
+  "health": "ok"
+}

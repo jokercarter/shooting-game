@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-02",
+  "url": "http://127.0.0.1:8082/arena/",
+  "flow": "first browser joins -> second WebSocket aims at first -> live hit",
+  "room": "BDE91A",
+  "target_hp_after_hit": 64,
+  "visible_damage_number": "-36",
+  "screenshot": "output/playwright/local-damage-number-e2e.png",
+  "console_errors": 0,
+  "room_count_after_disconnect": 0,
+  "health": "ok",
+  "asset": "game.js v45"
+}

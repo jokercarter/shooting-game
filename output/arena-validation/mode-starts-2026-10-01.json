@@ -1,0 +1,125 @@
+[
+  {
+    "mode": "normal",
+    "mode_name": "Normal Deathmatch",
+    "map": "tidal",
+    "capacity": 20,
+    "humans": 1,
+    "bots": 4,
+    "bot_zombies": 0,
+    "bot_teams": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "state_mode": "normal",
+    "has_flags": false,
+    "team_scores": {
+      "0": 0,
+      "1": 0
+    },
+    "has_lives": false,
+    "winner": null
+  },
+  {
+    "mode": "zombie_dm",
+    "mode_name": "Zombie Deathmatch",
+    "map": "tidal",
+    "capacity": 24,
+    "humans": 1,
+    "bots": 4,
+    "bot_zombies": 4,
+    "bot_teams": [
+      2
+    ],
+    "state_mode": "zombie_dm",
+    "has_flags": false,
+    "team_scores": {
+      "0": 0,
+      "1": 0
+    },
+    "has_lives": false,
+    "winner": null
+  },
+  {
+    "mode": "team_dm",
+    "mode_name": "Team Deathmatch",
+    "map": "tidal",
+    "capacity": 20,
+    "humans": 1,
+    "bots": 4,
+    "bot_zombies": 0,
+    "bot_teams": [
+      0,
+      1
+    ],
+    "state_mode": "team_dm",
+    "has_flags": false,
+    "team_scores": {
+      "0": 0,
+      "1": 0
+    },
+    "has_lives": false,
+    "winner": null
+  },
+  {
+    "mode": "ctf",
+    "mode_name": "Capture the Flag",
+    "map": "tidal",
+    "capacity": 20,
+    "humans": 1,
+    "bots": 4,
+    "bot_zombies": 0,
+    "bot_teams": [
+      0,
+      1
+    ],
+    "state_mode": "ctf",
+    "has_flags": true,
+    "team_scores": {
+      "0": 0,
+      "1": 0
+    },
+    "has_lives": false,
+    "winner": null
+  },
+  {
+    "mode": "duel",
+    "mode_name": "Ranked 1v1",
+    "map": "tidal",
+    "capacity": 2,
+    "humans": 1,
+    "bots": 0,
+    "bot_zombies": 0,
+    "bot_teams": [],
+    "state_mode": "duel",
+    "has_flags": false,
+    "team_scores": {
+      "0": 0,
+      "1": 0
+    },
+    "has_lives": true,
+    "winner": null
+  },
+  {
+    "mode": "zombie_coop",
+    "mode_name": "Zombie Coop",
+    "map": "tidal",
+    "capacity": 24,
+    "humans": 1,
+    "bots": 18,
+    "bot_zombies": 18,
+    "bot_teams": [
+      1
+    ],
+    "state_mode": "zombie_coop",
+    "has_flags": false,
+    "team_scores": {
+      "0": 0,
+      "1": 0
+    },
+    "has_lives": false,
+    "winner": null
+  }
+]

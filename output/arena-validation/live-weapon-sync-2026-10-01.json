@@ -1,0 +1,46 @@
+[
+  {
+    "label": "lan",
+    "base": "http://10.0.0.100:8080",
+    "same_room": true,
+    "mode_locked": true,
+    "map_locked": true,
+    "humans": 2,
+    "skins_seen": [
+      "gear",
+      "orchard"
+    ],
+    "weapon_count": 15,
+    "h_kind": "heal_beam",
+    "j_kind": "energy_ray",
+    "y_kind": "energy_orb",
+    "y_combo_damage": 100,
+    "movement_synced": true,
+    "movement_delta": 10.0,
+    "chat_synced": true,
+    "after_disconnect_humans": 1,
+    "room_cleaned": true
+  },
+  {
+    "label": "public",
+    "base": "https://nearby-protect-proved-ratios.trycloudflare.com",
+    "same_room": true,
+    "mode_locked": true,
+    "map_locked": true,
+    "humans": 2,
+    "skins_seen": [
+      "gear",
+      "orchard"
+    ],
+    "weapon_count": 15,
+    "h_kind": "heal_beam",
+    "j_kind": "energy_ray",
+    "y_kind": "energy_orb",
+    "y_combo_damage": 100,
+    "movement_synced": true,
+    "movement_delta": 11.0,
+    "chat_synced": true,
+    "after_disconnect_humans": 1,
+    "room_cleaned": true
+  }
+]

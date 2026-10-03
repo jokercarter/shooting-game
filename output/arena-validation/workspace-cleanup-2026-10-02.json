@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-02",
+  "workspace": "C:\\Users\\90631\\Desktop\\courses\\SWE+AI",
+  "active_ports": [
+    8080,
+    8082
+  ],
+  "retired_ports": [
+    8081,
+    4174,
+    4175,
+    4176
+  ],
+  "health": {
+    "local": "ok",
+    "lan": "ok"
+  },
+  "rooms": 0,
+  "arena_log_files": 0,
+  "backend_pycache_exists": false,
+  "test_results_exists": false,
+  "tmp_exists": false,
+  "playwright_cache_exists": false,
+  "pytest_cache_exists": false,
+  "runtime_logs": "system temp directory",
+  "history": "docs/UPDATE_HISTORY.md",
+  "old_ports_listeners": [],
+  "cleanup_tool": {
+    "workspace": "C:\\Users\\90631\\Desktop\\courses\\SWE+AI",
+    "dry_run": false,
+    "file_count": 529,
+    "removed": [],
+    "skipped": [],
+    "remaining_arena_logs": [],
+    "remaining_latency_reports": [
+      "latency-10p-browser-final-2026-10-02.json",
+      "latency-10p-lan-90hz-final-2026-10-02.json"
+    ]
+  }
+}

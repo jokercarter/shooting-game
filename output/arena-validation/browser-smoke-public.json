@@ -1,0 +1,21 @@
+{
+  "title": "Morrow Fields · Forest Skirmish",
+  "lobby": true,
+  "lobbyChat": true,
+  "selectedMap": "glass",
+  "selectedMode": "team_dm",
+  "selectedSkin": "orchard",
+  "joinedRoom": "2D5411",
+  "weaponSlots": 1,
+  "skillPointsText": "技能点 0 · 每200战绩获得1点",
+  "minimap": true,
+  "scoreboard": true,
+  "returnToLobby": true,
+  "lobbyChatReconnected": true,
+  "roomPickedFromList": true,
+  "mobileWidth": {
+    "viewport": 390,
+    "document": 390
+  },
+  "consoleErrors": []
+}

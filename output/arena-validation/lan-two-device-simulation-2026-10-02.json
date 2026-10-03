@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-02",
+  "url": "http://127.0.0.1:8082/arena/",
+  "room": "2B8E84",
+  "players_during": "2 / 20",
+  "first_state": "LIVE FRONTIER",
+  "second_state": "LIVE FRONTIER",
+  "movement": {
+    "moved": true,
+    "first_x": 1011,
+    "last_x": 1146.8,
+    "elapsed_ms": 907
+  },
+  "shooting_detected": true,
+  "after_disconnect": "1 / 20",
+  "console_errors": 0,
+  "screenshots": [
+    "output/playwright/local-two-device-one.png",
+    "output/playwright/local-two-device-two.png"
+  ],
+  "health": "ok"
+}

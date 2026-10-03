@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-02",
+  "base_url": "http://127.0.0.1:4174/arena/",
+  "test": "tests/arena.spec.ts: ten-player crowd keeps the private HUD patch responsive",
+  "humans": 10,
+  "room_count_during": "10 / 20",
+  "state_interval_ms": 11,
+  "input_interval_ms": 11,
+  "browser_fps_3s": 60.3,
+  "asset_version": "game.js v60",
+  "render_change": "static minimap layer cached, compact player state merge, Windows 1ms timer and absolute 90Hz server deadlines with 11ms high-player input",
+  "private_hud": "energy and ammo remained responsive; WASD movement changed local position and shots appeared on other clients",
+  "console_errors": 0,
+  "result": "passed"
+}

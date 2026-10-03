@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#202d1b">
+  <title>Morrow Fields · Forest Skirmish</title>
+  <link rel="icon" href="/arena/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/arena/game.css?v=23">
+</head>
+<body>
+  <main class="game-shell">
+    <header class="game-topbar">
+      <a href="/" class="brand"><span class="brand-mark">✳</span><span>MORROW <i>FIELDS</i></span></a>
+      <div class="match-state"><span class="live-dot"></span><span id="state-label">WAITING FOR PILOTS</span><strong id="timer">00:00</strong><small id="perf-label" class="perf-label">FPS -- · STATE --</small></div>
+      <div class="topbar-actions"><button id="settings" class="quiet-button" type="button" aria-expanded="false">设置</button><button id="restart" class="quiet-button" type="button">返回大厅</button></div>
+    </header>
+    <section class="game-layout">
+      <section class="arena-frame" aria-label="Morrow Fields online pixel arena">
+        <canvas id="arena" width="960" height="640" tabindex="0"></canvas>
+
+        <aside class="loadout-panel" aria-label="已拾取武器">
+          <div class="weapon-list" id="weapon-list"></div>
+          <div class="ability-stack">
+            <button class="ability" type="button" data-ability="dash"><kbd>右键</kbd><span><b>跳跃闪避</b><small>短距跃闪<div class="cooldown"><i id="dash-fill"></i></div></span></button>
+            <button class="ability" type="button" data-ability="shield"><kbd>Q</kbd><span><b>护幕</b><small>短暂减伤</small></span></button>
+            <button class="ability" type="button" data-ability="repair"><kbd>E</kbd><span><b>修复</b><small>恢复生命</small></span></button>
+          </div>
+          <div class="upgrade-box" aria-label="升级">
+            <small id="upgrade-points" class="upgrade-points" aria-live="polite">技能点 0 · Space 确认选择 · 每200战绩获得1点</small>
+            <button type="button" data-upgrade="vitality"><kbd>V</kbd> 加固外壳</button>
+            <button type="button" data-upgrade="velocity"><kbd>X</kbd> 提升速度</button>
+            <button type="button" data-upgrade="amplify"><kbd>C</kbd> 强化武器</button>
+            <button type="button" id="confirm-upgrade" class="upgrade-confirm" disabled><kbd>SPACE</kbd>确认所选升级</button>
+          </div>
+        </aside>
+
+        <aside class="minimap-panel" aria-label="小地图和玩家排名">
+          <div class="minimap-heading"><span id="map-name">MOSSWOOD</span><span id="pilot-count">1 / 20</span></div>
+          <canvas id="mini-map" width="192" height="128"></canvas>
+          <div id="mini-rows" class="mini-rows"></div>
+        </aside>
+
+        <div class="hud top-left"><span class="hud-label">生命值</span><div class="health"><i id="health-fill"></i></div><b id="health-number">100 / 100</b><span class="hud-label armor-label">护甲</span><div class="armor"><i id="armor-fill"></i></div><span class="hud-label energy-label">能量</span><div class="energy"><i id="energy-fill"></i></div></div>
+        <div class="hud bottom-left"><span class="hud-label">战绩</span><b id="score">0000</b><small><span id="kills">0</span> 击倒 · <span id="deaths">0</span> 倒下</small></div>
+        <div class="hud bottom-center weapon-readout"><span class="hud-label" id="weapon-name">PULSE NEEDLE</span><b id="ammo">∞</b><small id="weapon-info">BOLT / 28 DMG</small><div id="reload-status" class="reload-status hidden" aria-live="polite"><span>装填</span><i id="reload-fill"></i><small id="reload-label">0.0s</small></div></div>
+        <button id="copy-room" class="copy-room hidden" type="button" title="复制房间链接">房间 <b>------</b> <span>复制邀请链接</span></button>
+        <div id="death-banner" class="death-banner hidden" aria-live="polite"><b>信号中断</b><small id="death-status">正在等待重启…</small></div>
+        <section id="match-result" class="match-result hidden" aria-live="polite">
+          <p class="eyebrow">MATCH COMPLETE</p>
+          <h2 id="match-result-title">战斗结束</h2>
+          <p id="match-result-subtitle" class="match-result-subtitle">最终战绩</p>
+          <div id="match-result-rows" class="match-result-rows"></div>
+          <div id="map-vote" class="map-vote"></div>
+          <small id="map-vote-status" class="map-vote-status">所有玩家投票后开始下一局</small>
+          <div class="map-vote-progress"><i id="map-vote-progress-fill"></i></div>
+          <div class="match-result-actions"><button id="match-result-replay" type="button">保存短回放</button><button id="match-result-again" type="button">再开一局</button><button id="match-result-lobby" type="button">返回大厅</button></div>
+        </section>
+        <div id="replay-controls" class="replay-controls hidden" aria-label="短回放控制">
+          <button id="replay-toggle" type="button">暂停</button>
+          <input id="replay-seek" type="range" min="0" max="1" step="1" value="0" aria-label="回放进度">
+          <span id="replay-time">0:00 / 0:00</span>
+          <button id="replay-exit" type="button">退出回放</button>
+        </div>
+        <aside id="options-panel" class="options-panel hidden" aria-label="画面设置">
+          <p class="eyebrow">画面设置</p>
+          <label><input id="option-low-effects" type="checkbox"> 低特效模式</label>
+          <label><input id="option-minimap" type="checkbox"> 显示小地图</label>
+          <label><input id="option-weapons" type="checkbox"> 显示武器栏</label>
+          <label><input id="option-chat" type="checkbox"> 显示聊天</label>
+          <label><input id="option-perf" type="checkbox"> 显示 FPS / RTT</label>
+          <label class="range-option"><span>小地图尺寸 <output id="option-minimap-scale-value">100%</output></span><input id="option-minimap-scale" type="range" min="0.75" max="1.4" step="0.05" value="1"></label>
+          <label class="range-option"><span>音量 <output id="option-volume-value">35%</output></span><input id="option-volume" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+          <label class="replay-file-option"><span>加载短回放</span><input id="option-replay-file" type="file" accept="application/json,.json"></label>
+        </aside>
+        <aside id="scoreboard" class="scoreboard hidden"><p class="eyebrow">玩家排行 <kbd>TAB</kbd></p><div id="score-rows"></div></aside>
+        <div id="feed" class="kill-feed" aria-live="polite"></div>
+        <form id="chat" class="chat hidden"><input id="chat-input" maxlength="180" placeholder="Enter 发送消息" autocomplete="off"></form>
+        <div id="toast" class="toast" aria-live="polite"></div>
+
+        <div id="start-screen" class="overlay">
+          <div class="lobby-card">
+            <div class="intro-tag"><span>FIELD NETWORK</span><i></i><span>BUILD 10</span></div>
+            <p class="eyebrow">森林边境 · 多人实时对战</p>
+            <h1>走进<br><em>苔木边境</em></h1>
+            <p class="intro-copy">探索原创像素地图，拾取武器并和朋友同场交锋。武器会留在右侧栏，弹药耗尽后再次寻找地图上的补给箱。</p>
+            <div class="lobby-fields">
+              <label>玩家名称<input id="nickname" maxlength="18" value="Rifter"></label>
+              <label>房间码<input id="room-code" maxlength="8" placeholder="留空创建新房间"></label>
+              <button id="skin-cycle" class="skin-cycle" data-skin="wayfinder" aria-label="切换角色外观，当前巡林斥候" title="切换角色外观" type="button">
+                <span class="skin-preview" aria-hidden="true"></span>
+                <span class="skin-copy"><small>角色外观</small><b id="skin-name">巡林斥候</b></span>
+                <span class="skin-refresh" aria-hidden="true">↻</span>
+              </button>
+            </div>
+            <section class="mode-section" aria-label="游戏模式">
+              <div class="mode-heading"><span>游戏模式</span><small>选择你的战区规则</small></div>
+              <div class="mode-picker" role="group" aria-label="游戏模式">
+                <button class="mode-card" data-mode="duel" aria-pressed="false" type="button"><span class="mode-mark">1v1</span><b>五命决斗</b><small>双人对战</small></button>
+                <button class="mode-card active" data-mode="normal" aria-pressed="true" type="button"><span class="mode-mark">FFA</span><b>自由混战</b><small>最多 20 人</small></button>
+                <button class="mode-card" data-mode="zombie_dm" aria-pressed="false" type="button"><span class="mode-mark">INF</span><b>感染乱斗</b><small>最多 24 人</small></button>
+                <button class="mode-card" data-mode="team_dm" aria-pressed="false" type="button"><span class="mode-mark">TDM</span><b>队伍积分</b><small>最多 20 人</small></button>
+                <button class="mode-card" data-mode="ctf" aria-pressed="false" type="button"><span class="mode-mark">CTF</span><b>夺旗</b><small>最多 20 人</small></button>
+                <button class="mode-card" data-mode="zombie_coop" aria-pressed="false" type="button"><span class="mode-mark">COOP</span><b>感染生存</b><small>最多 24 人</small></button>
+              </div>
+            </section>
+            <div class="map-picker">
+              <button data-map="tidal" class="active" type="button"><span class="map-swatch tidal-swatch"></span><b>MOSSWOOD</b><small>苔木林地</small></button>
+              <button data-map="glass" type="button"><span class="map-swatch glass-swatch"></span><b>SUNVALE</b><small>阳谷果园</small></button>
+              <button data-map="ember" type="button"><span class="map-swatch ember-swatch"></span><b>REDLEAF</b><small>赤叶遗迹</small></button>
+            </div>
+            <div class="lobby-actions"><button id="start" class="start-button" type="button">进入战场 <span>↗</span></button><button id="watch-room" class="watch-button" type="button">观战</button><small id="lobby-status">正在查找开放房间…</small></div>
+            <div class="open-rooms"><div class="rooms-heading"><span>开放房间</span><button id="refresh-rooms" type="button">刷新</button></div><div id="room-list" class="room-list"><span class="empty-rooms">暂时没有开放房间</span></div>
+              <section class="lobby-chat" aria-label="大厅聊天">
+                <div class="lobby-chat-heading"><span>GLOBAL RELAY</span><small>大厅频道</small></div>
+                <div id="lobby-chat-list" class="lobby-chat-list" role="log" aria-live="polite"><span class="lobby-chat-empty">正在接入大厅频道…</span></div>
+                <form id="lobby-chat-form" class="lobby-chat-form"><input id="lobby-chat-input" maxlength="180" autocomplete="off" placeholder="对所有大厅玩家说话…"><button type="submit">发送</button></form>
+              </section>
+              <div class="lobby-network"><div class="network-kicker"><i></i><span>FIELD RELAY</span><b>ONLINE</b></div><div class="lobby-stats"><span><small>MAPS</small><strong>03</strong></span><span><small>MODES</small><strong>06</strong></span><span><small>PILOTS</small><strong>24</strong></span></div><p>选择同一战区或使用房间码加入好友。普通房间最多 20 人，感染模式最多 24 人。</p></div>
+            </div>
+            <p class="control-hint">WASD 移动 · 左键射击 · 右键跳跃 · Q/E 技能 · 升级点选后 Space · 1–0/N/M/H/J/L 切枪 · F 蓄力 · Y 副射击</p>
+          </div>
+        </div>
+      </section>
+    </section>
+    <footer class="game-footer"><span>MORROW FIELDS · ORIGINAL ONLINE ARENA</span><span>WASD / 左键射击 · 右键跳跃 · 1–0 / N / M / H / J / L · R 装填 · Y 副射击</span></footer>
+  </main>
+  <script src="/arena/game.js?v=75"></script>
+</body>
+</html>

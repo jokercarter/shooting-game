@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" shape-rendering="crispEdges"><defs><pattern id="grass-tidal" width="24" height="24" patternUnits="userSpaceOnUse">
+      <rect width="24" height="24" fill="#2f5b3b" />
+      <path d="M3 15h3v-5h2v4h3M15 6h3v5h2M13 20h2v-4h2v3" fill="none" stroke="#78a75a" stroke-width="2" />
+      <rect x="20" y="17" width="2" height="2" fill="#a7c873" />
+    </pattern>
+    </defs><rect width="24" height="24" fill="url(#grass-tidal)" /></svg>

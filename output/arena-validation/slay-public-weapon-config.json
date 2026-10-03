@@ -1,0 +1,31 @@
+{
+  "source": "https://slay.one/dist/client-bundle.js",
+  "observed_at": "2026-10-01",
+  "source_note": "Public client weapon table (module 5273); official tick values are converted by the local server with 20 ticks per second and 30 px per field unit.",
+  "y_mapping": {
+    "official_weapon_id": 16,
+    "official_weapon": "Energy Rifle",
+    "mode2_weapon_id": 17,
+    "mode2_weapon": "Energy Rifle 2nd Mode",
+    "local_key": "energy_sniper",
+    "local_alt_kind": "energy_orb"
+  },
+  "weapons": [
+    {"official_id": 0, "official_name": "Laser Gun", "local_key": "pulse", "cooldown_ticks": 17, "damage": 28, "projectile_speed_field_per_tick": 0.75, "lifetime_ticks": 60, "ammo_size": 999999, "start_ammo_size": 999999, "clip_size": null},
+    {"official_id": 1, "official_name": "Grenade Launcher", "local_key": "lobber", "cooldown_ticks": 4, "damage": 55, "projectile_speed_field_per_tick": 0.5, "range_field": 9.5, "aoe_field": 2.1, "ammo_size": 8, "clip_size": 1, "mode2_cooldown_ticks": 55},
+    {"official_id": 2, "official_name": "Flamethrower", "local_key": "flame", "cooldown_ticks": 2, "damage": 4, "projectile_speed_field_per_tick": 0.45, "lifetime_ticks": 16, "ammo_size": 100, "clip_size": 50},
+    {"official_id": 3, "official_name": "Minigun", "local_key": "rotary", "cooldown_ticks": 2, "damage": 5.55, "projectile_speed_field_per_tick": 3, "lifetime_ticks": 20, "ammo_size": 100, "clip_size": 50},
+    {"official_id": 4, "official_name": "Rocket Launcher", "local_key": "flare", "cooldown_ticks": 4, "damage": 60, "projectile_speed_field_per_tick": 0.6, "lifetime_ticks": 130, "aoe_field": 2.3, "ammo_size": 8, "clip_size": 1, "mode2_cooldown_ticks": 55},
+    {"official_id": 5, "official_name": "Laser Gun R", "local_key": "prism", "cooldown_ticks": 17, "damage": 28, "projectile_speed_field_per_tick": 0.75, "lifetime_ticks": 100, "reflections": 8, "ammo_size": 20, "clip_size": 999999, "mode2_cooldown_ticks": 20},
+    {"official_id": 6, "official_name": "Homing Launcher", "local_key": "seeker", "cooldown_ticks": 4, "damage": 50, "projectile_speed_field_per_tick": 0.36, "turn_radius": 0.16, "lifetime_ticks": 250, "aoe_field": 1.9, "ammo_size": 7, "clip_size": 1, "mode2_cooldown_ticks": 70},
+    {"official_id": 7, "official_name": "Remote Controlled Launcher", "local_key": "cursor", "cooldown_ticks": 4, "damage": 58, "projectile_speed_field_per_tick": 0.39, "turn_radius": 0.2, "lifetime_ticks": 250, "aoe_field": 1.9, "ammo_size": 7, "clip_size": 1, "mode2_cooldown_ticks": 70},
+    {"official_id": 8, "official_name": "Sniper Rifle", "local_key": "rail", "cooldown_ticks": 35, "damage": 65, "projectile_speed_field_per_tick": 8, "lifetime_ticks": 20, "required_stand_ticks": 20, "ammo_size": 10, "clip_size": 5, "mode2_cooldown_ticks": 70},
+    {"official_id": 9, "official_name": "Shotgun", "local_key": "scatter", "cooldown_ticks": 22, "damage": 6, "projectile_speed_field_per_tick": 3, "lifetime_ticks": 20, "damage_loss_per_range": 0.15, "projectiles": 7, "spread_radians": 0.2827433388, "ammo_size": 10, "clip_size": 5, "mode2_cooldown_ticks": 55},
+    {"official_id": 10, "official_name": "Rapid Rocket Launcher", "local_key": "rapid_flare", "cooldown_ticks": 15, "damage": 42, "projectile_speed_field_per_tick": 0.6, "lifetime_ticks": 130, "aoe_field": 1.45, "ammo_size": 16, "clip_size": 8, "mode2_cooldown_ticks": 60},
+    {"official_id": 11, "official_name": "Rapid Grenade Launcher", "local_key": "rapid_lobber", "cooldown_ticks": 18, "damage": 42, "projectile_speed_field_per_tick": 0.5, "range_field": 9.5, "aoe_field": 1.5, "ammo_size": 16, "clip_size": 8, "mode2_cooldown_ticks": 60},
+    {"official_id": 15, "official_name": "Heal Beam", "local_key": "healing_wave", "cooldown_ticks": 5, "damage": -5, "self_heal": 3.75, "auto_aim_range_field": 3, "projectile_speed_field_per_tick": 10.5, "lifetime_ticks": 5, "ammo_size": 100, "clip_size": 40, "mode2_cooldown_ticks": 60},
+    {"official_id": 16, "official_name": "Energy Rifle", "local_key": "energy_sniper", "cooldown_ticks": 20, "damage": 20, "projectile_speed_field_per_tick": 3, "projectile_size_field": 0.2, "lifetime_ticks": 8, "ammo_size": 28, "clip_size": 14, "mode2_cooldown_ticks": 60,
+      "alternate": {"official_id": 17, "damage": 45, "combo_damage": 100, "projectile_speed_field_per_tick": 0.35, "projectile_size_field": 0.28, "lifetime_ticks": 100, "aoe_field": 1.4, "combo_aoe_field": 3.1}},
+    {"official_id": 18, "official_name": "Bug Launcher", "local_key": "bug", "cooldown_ticks": 3.5, "damage": 50, "projectile_speed_field_per_tick": 0.45, "range_field": 9.5, "aoe_field": 2.1, "ammo_size": 6, "clip_size": 1, "mode2_cooldown_ticks": 65}
+  ]
+}
