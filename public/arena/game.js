@@ -31,8 +31,8 @@
     skinName: document.querySelector('#skin-name'), lobbyChatList: document.querySelector('#lobby-chat-list'),
     lobbyChatForm: document.querySelector('#lobby-chat-form'), lobbyChatInput: document.querySelector('#lobby-chat-input'),
   };
-  const WEAPON_KEYS = ['pulse','lobber','flame','rotary','flare','prism','seeker','cursor','rail','scatter','rapid_flare','rapid_lobber','healing_wave','energy_sniper','bug'];
-  const KEY_WEAPONS = {'1':'pulse','2':'lobber','3':'flame','4':'rotary','5':'flare','6':'prism','7':'seeker','8':'cursor','9':'rail','0':'scatter','n':'rapid_flare','m':'rapid_lobber','h':'healing_wave','j':'energy_sniper','l':'bug'};
+  const WEAPON_KEYS = ['pulse','lobber','flame','rotary','flare','prism','seeker','cursor','scatter','rapid_flare','rapid_lobber','healing_wave','energy_sniper','bug'];
+  const KEY_WEAPONS = {'1':'pulse','2':'lobber','3':'flame','4':'rotary','5':'flare','6':'prism','7':'seeker','8':'cursor','0':'scatter','n':'rapid_flare','m':'rapid_lobber','h':'healing_wave','j':'energy_sniper','l':'bug'};
   const PILOT_SKINS = [
     {id:'wayfinder',name:'巡林斥候'},
     {id:'orchard',name:'阳谷采集者'},
@@ -68,12 +68,12 @@
   // offline asset request never prevents the match from rendering.
   const GENERATED_ASSET_SOURCES={
     pilots:{wayfinder:'/arena/generated/pilot-wayfinder-body.svg',orchard:'/arena/generated/pilot-orchard-body.svg',ember:'/arena/generated/pilot-ember-body.svg',gear:'/arena/generated/pilot-gear-body.svg'},
-    weapons:{pulse:'/arena/generated/weapon-pulse.svg',flame:'/arena/generated/weapon-flame.svg',rail:'/arena/generated/weapon-rail.svg',lobber:'/arena/generated/weapon-lobber.svg',prism:'/arena/generated/weapon-prism.svg',heal:'/arena/generated/weapon-heal.svg'},
+    weapons:{pulse:'/arena/generated/weapon-pulse.svg',flame:'/arena/generated/weapon-flame.svg',lobber:'/arena/generated/weapon-lobber.svg',prism:'/arena/generated/weapon-prism.svg',heal:'/arena/generated/weapon-heal.svg'},
     obstacles:{tree:'/arena/generated/obstacle-tree.svg',stump:'/arena/generated/obstacle-stump.svg',crates:'/arena/generated/obstacle-crates.svg',wall:'/arena/generated/obstacle-wall.svg',spikes:'/arena/generated/obstacle-spikes.svg'},
     grounds:{tidal:'/arena/generated/ground-tidal.svg',glass:'/arena/generated/ground-glass.svg',ember:'/arena/generated/ground-ember.svg'}
   };
   const generatedAssets={pilots:new Map(),weapons:new Map(),obstacles:new Map(),grounds:new Map()};
-  const WEAPON_SPRITE_KEYS={pulse:'pulse',flame:'flame',rail:'rail',lobber:'lobber',rapid_lobber:'lobber',prism:'prism',flare:'prism',rapid_flare:'prism',healing_wave:'heal'};
+  const WEAPON_SPRITE_KEYS={pulse:'pulse',flame:'flame',lobber:'lobber',rapid_lobber:'lobber',prism:'prism',flare:'prism',rapid_flare:'prism',healing_wave:'heal'};
   function loadGeneratedAssets(){
     for(const [group,entries] of Object.entries(GENERATED_ASSET_SOURCES))for(const [key,src] of Object.entries(entries)){
       const image=new Image();image.decoding='async';image.onload=()=>{if(group==='grounds')groundPatterns.delete(key)};image.src=src;generatedAssets[group].set(key,image);
@@ -277,7 +277,7 @@
     const start=audioContext.currentTime,osc=audioContext.createOscillator(),gain=audioContext.createGain();
     const missile=MISSILE_KINDS.has(kind),explosion=type==='explosion';
     osc.type=explosion?'sawtooth':missile?'triangle':'square';
-    const base=explosion?75:missile?150:kind==='rail'?420:260;
+    const base=explosion?75:missile?150:260;
     osc.frequency.setValueAtTime(base*(.92+Math.random()*.16),start);
     osc.frequency.exponentialRampToValueAtTime(Math.max(35,base*(explosion?.32:.58)),start+(explosion?.22:.06));
     gain.gain.setValueAtTime(Math.max(.001,displaySettings.volume*(explosion?.22:.055)),start);
@@ -433,7 +433,7 @@
   }
   function recoilFor(kind){return MISSILE_KINDS.has(kind)?12:kind==='rail'?9:kind==='scatter'?6:4}
   function damageNumberStyle(weapon, value, own){
-    const color=own?'#ff9077':MISSILE_KINDS.has(weapon)?'#ffb45e':weapon==='flame'?'#ff8d58':weapon==='rail'||weapon==='energy_sniper'?'#b9d9ff':weapon==='scatter'?'#ffe58f':'#ffeec0';
+    const color=own?'#ff9077':MISSILE_KINDS.has(weapon)?'#ffb45e':weapon==='flame'?'#ff8d58':weapon==='energy_sniper'?'#b9d9ff':weapon==='scatter'?'#ffe58f':'#ffeec0';
     return {color,size:value>=55?13:11};
   }
   function updateScoreboard(){
@@ -1238,7 +1238,7 @@
     // both pickup scale and the small HUD glyph scale.
     painter.globalAlpha=.18;painter.fillStyle=color;painter.fillRect(-13,-7,28,14);painter.globalAlpha=1;
     painter.fillStyle=ART_TOKENS.deepInk;painter.fillRect(-11,-2,22,6);painter.fillStyle=color;
-    if(key==='rail'){
+    if(false){
       painter.fillRect(-11,-3,16,4);painter.fillRect(-8,1,7,4);painter.fillRect(3,-2,12,2);painter.fillRect(-4,-5,5,2);
       painter.fillStyle='#fff0b3';painter.fillRect(9,-3,6,1);
     }else if(key==='rotary'){
@@ -1419,7 +1419,7 @@
       ctx.strokeRect(-reach,-reach*.7,reach*2,reach*1.4);
       ctx.fillStyle=sprite.colors.w;ctx.fillRect(-reach,-2,5,5);ctx.fillRect(reach-4,-2,5,5);
       ctx.fillRect(-reach,reach*.7-3,5,5);ctx.fillRect(reach-4,reach*.7-3,5,5);
-    }else if(p.kind==='rail'){
+    }else if(false){
       ctx.globalAlpha=.45;ctx.fillStyle=sprite.trail;ctx.fillRect(-48,-2,62,4);
       ctx.globalAlpha=.9;ctx.fillStyle='#e7f1ff';ctx.fillRect(-28,-1,43,2);
       ctx.fillStyle='#fff';ctx.fillRect(8,-2,5,4);

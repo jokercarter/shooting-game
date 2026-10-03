@@ -127,7 +127,7 @@ MAPS = {
         "pickup_points": [
             [140, 80, "lobber"], [480, 76, "flame"], [820, 80, "rotary"],
             [80, 320, "flare"], [880, 420, "prism"], [320, 260, "seeker"],
-            [640, 240, "cursor"], [320, 360, "rail"], [640, 360, "scatter"],
+            [640, 240, "cursor"], [320, 360, "scatter"],
             [100, 560, "rapid_flare"], [480, 560, "rapid_lobber"], [760, 585, "healing_wave"],
             [320, 560, "energy_sniper"], [640, 80, "bug"],
         ],
@@ -186,8 +186,8 @@ MAPS = {
         ],
         "pickup_points": [
             [84, 80, "lobber"], [300, 80, "flame"], [660, 80, "rotary"], [876, 80, "flare"],
-            [80, 400, "prism"], [360, 250, "seeker"], [700, 240, "cursor"], [876, 400, "rail"],
-            [300, 400, "scatter"], [520, 350, "rapid_flare"], [360, 540, "rapid_lobber"],
+            [80, 400, "prism"], [360, 250, "seeker"], [700, 240, "cursor"], [876, 400, "scatter"],
+            [520, 350, "rapid_flare"], [360, 540, "rapid_lobber"],
             [740, 560, "healing_wave"], [200, 440, "energy_sniper"], [710, 440, "bug"],
         ],
         "support_points": [
@@ -247,8 +247,8 @@ MAPS = {
         ],
         "pickup_points": [
             [80, 80, "lobber"], [480, 80, "flame"], [880, 80, "rotary"], [80, 320, "flare"],
-            [880, 320, "prism"], [80, 560, "seeker"], [480, 560, "cursor"], [880, 560, "rail"],
-            [280, 220, "scatter"], [680, 220, "rapid_flare"], [280, 420, "rapid_lobber"],
+            [880, 320, "prism"], [80, 560, "seeker"], [480, 560, "cursor"], [880, 560, "scatter"],
+            [680, 220, "rapid_flare"], [280, 420, "rapid_lobber"],
             [680, 420, "healing_wave"], [380, 240, "energy_sniper"], [580, 400, "bug"],
         ],
         "support_points": [
@@ -658,11 +658,6 @@ WEAPONS = {
                "blast": 1.9 * FIELD_UNIT_PX, "turn": .2 * 20,
                "color": "#6fcaff", "spread": 0, "clip": 1, "reserve": 7,
                "pickup": 7, "ammo_size": 7, "reload": 70 / 20, "movement_modifier": .95},
-    "rail": {"name": "Stillpoint", "slot": "9", "kind": "rail", "cooldown": 35 / 20,
-             "damage": 65, "speed": 8 * 20 * FIELD_UNIT_PX, "life": 20 / 20,
-             "color": "#e9f4ff", "spread": 0, "charge": 20 / 20,
-             "pierce": -1, "clip": 5, "reserve": 10, "pickup": 10,
-             "ammo_size": 10, "reload": 70 / 20, "movement_modifier": 1.1},
     "scatter": {"name": "Shard Bloom", "slot": "0", "kind": "scatter", "cooldown": 22 / 20,
                 "damage": 6, "speed": 3 * 20 * FIELD_UNIT_PX, "life": 20 / 20,
                 "projectiles": 7,
@@ -1437,6 +1432,7 @@ def _fall_into_water(room: Room, player: Player, now: float):
     player.knockback_source = None
     player.firing = False
     player.x, player.y = safe_spawn(room.map_id, [p for p in room.players.values() if p.id != player.id])
+    player.portal_cooldown_until = 0
     add_feed(room, player.name + " fell into the river")
 
 
@@ -2185,6 +2181,7 @@ async def run_room(room: Room):
                     continue
                 player.dead_until = 0
                 player.x, player.y = safe_spawn(room.map_id, [p for p in room.players.values() if p.id != player.id])
+                player.portal_cooldown_until = 0
                 player.hp = 140 if player.is_zombie else 100 + player.upgrades["vitality"] * 20
                 player.armor = 0
                 player.cover_exposed_until = 0

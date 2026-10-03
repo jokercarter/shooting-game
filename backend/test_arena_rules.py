@@ -73,7 +73,7 @@ def test_map_vote_starts_a_new_round_in_the_same_room():
     assert room.winner is None
     assert room.map_id == "glass"
     assert room.team_scores == {"0": 0, "1": 0}
-    assert len(room.pickups) == 14
+    assert len(room.pickups) == 13
     assert all(player.score == 0 and player.kills == 0 and player.deaths == 0
                for player in room.players.values())
     assert all(player.dead_until == 0 for player in room.players.values())
@@ -196,7 +196,7 @@ def test_public_modes_api_publishes_human_capacity():
 def test_weapon_slots_cover_all_fifteen_controls_and_energy_alt_fire():
     slots = {weapon["slot"]: key for key, weapon in arena.WEAPONS.items()}
 
-    assert len(arena.WEAPONS) == len(slots) == 15
+    assert len(arena.WEAPONS) == len(slots) == 14
     assert {"H": "healing_wave", "J": "energy_sniper", "L": "bug"}.items() <= slots.items()
     assert arena.WEAPONS["energy_sniper"]["alternate"]["kind"] == "energy_orb"
     assert arena.WEAPONS["energy_sniper"]["alternate"]["combo_damage"] == 100
@@ -276,7 +276,7 @@ def test_weapon_pickups_use_fixed_marked_points_and_stay_bound_to_the_same_weapo
     arena._make_pickups(room)
     points = arena.MAPS[map_id]["pickup_points"]
 
-    assert len(points) == 14
+    assert len(points) == len({key for key, weapon in arena.WEAPONS.items() if weapon["pickup"] > 0})
     assert {point[2] for point in points} == {
         key for key, weapon in arena.WEAPONS.items() if weapon["pickup"] > 0
     }
@@ -773,35 +773,6 @@ def test_websocket_input_broadcasts_second_fire_mode_state():
     assert updated is not None
 
 
-def test_rail_pierces_multiple_targets_and_shield_reduces_damage():
-    now = time.monotonic()
-    room = arena.Room(code="RAIL", map_id="tidal")
-    shooter = make_player("shooter", x=200, y=200)
-    first = make_player("first", x=300, y=200, hp=100)
-    second = make_player("second", x=400, y=200, hp=100)
-    room.players = {p.id: p for p in (shooter, first, second)}
-    shooter.weapon = "rail"
-    shooter.aim_x, shooter.aim_y = 500, shooter.y
-    shooter.aiming = shooter.firing = True
-    shooter.aim_started = now - 2
-    shooter.ammo["rail"] = {"mag": 5, "reserve": 10, "reload_until": 0}
-
-    arena._spawn_projectile(room, shooter, now)
-    for tick in range(18):
-        arena._advance_projectiles(room, .05, now + tick * .05)
-
-    assert first.hp == 35
-    assert second.hp == 35
-
-    protected = make_player("protected", x=500, y=200, shield_until=now + 5)
-    room.players[protected.id] = protected
-    arena._hurt(room, shooter, protected, 20, now)
-    assert protected.hp == 90
-
-    protected.hp = 100
-    arena._hurt(room, shooter, protected, 60, now)
-    assert protected.hp == 90
-
 
 def test_right_click_jump_has_a_short_server_side_invulnerability_window():
     now = time.monotonic()
@@ -918,6 +889,11 @@ def test_portals_pair_and_preserve_direction_for_players_and_projectiles():
     assert player.y > south["y"]
     assert player.x == pytest.approx(south["x"])
 
+    # The player cooldown is enforced server-side for five seconds.
+    player.x, player.y = north["x"], north["y"]
+    assert arena._maybe_teleport_player(room, player, now + 2) is False
+    assert arena._maybe_teleport_player(room, player, now + 6.2) is True
+
     projectile = {
         "id": 4, "owner": player.id, "weapon": "pulse", "kind": "bolt",
         "x": north["x"], "y": north["y"] - 180, "vx": 0.0, "vy": 500.0,
@@ -970,24 +946,6 @@ def test_missile_blast_can_damage_its_owner_and_falls_off_from_the_center():
 
     assert center.hp < source.hp < edge.hp < 100
 
-
-def test_charged_rail_waits_until_full_aim_time():
-    now = time.monotonic()
-    room = arena.Room(code="CHARGE", map_id="tidal")
-    player = make_player("shooter")
-    room.players[player.id] = player
-    player.weapon = "rail"
-    player.aim_x, player.aim_y = 500, player.y
-    player.aiming = player.firing = True
-    player.aim_started = now
-    player.ammo["rail"] = {"mag": 5, "reserve": 10, "reload_until": 0}
-
-    arena._spawn_projectile(room, player, now + .99)
-    assert room.projectiles == []
-
-    arena._spawn_projectile(room, player, now + 1.01)
-    assert len(room.projectiles) == 1
-    assert room.projectiles[0]["kind"] == "rail"
 
 
 def test_homing_missile_cannot_lock_through_wall():
@@ -1158,3 +1116,5 @@ def test_pickup_and_reload_fill_magazine_from_reserve():
     arena._spawn_projectile(room, player, player.ammo["lobber"]["reload_until"] + .01)
     assert room.projectiles
     assert player.ammo["lobber"]["reserve"] == 6
+
+
