@@ -69,7 +69,7 @@
   const GENERATED_ASSET_SOURCES={
     pilots:{wayfinder:'/arena/generated/pilot-wayfinder-body.svg',orchard:'/arena/generated/pilot-orchard-body.svg',ember:'/arena/generated/pilot-ember-body.svg',gear:'/arena/generated/pilot-gear-body.svg'},
     weapons:{pulse:'/arena/generated/weapon-pulse.svg',flame:'/arena/generated/weapon-flame.svg',lobber:'/arena/generated/weapon-lobber.svg',prism:'/arena/generated/weapon-prism.svg',heal:'/arena/generated/weapon-heal.svg'},
-    obstacles:{tree:'/arena/generated/obstacle-tree.svg',stump:'/arena/generated/obstacle-stump.svg',crates:'/arena/generated/obstacle-crates.svg',wall:'/arena/generated/obstacle-wall.svg',spikes:'/arena/generated/obstacle-spikes.svg'},
+    obstacles:{tree:'/arena/generated/obstacle-tree.svg',stump:'/arena/generated/obstacle-stump.svg',crates:'/arena/generated/obstacle-crates.svg',wall:'/arena/generated/obstacle-wall.svg',spikes:'/arena/generated/obstacle-spikes.svg',stoneAi:'/arena/generated/obstacle-stone-ai.png',cratesAi:'/arena/generated/obstacle-crates-ai.png',bushAi:'/arena/generated/obstacle-bush-ai.png',barricadeAi:'/arena/generated/obstacle-barricade-ai.png'},
     grounds:{tidal:'/arena/generated/ground-tidal.svg',glass:'/arena/generated/ground-glass.svg',ember:'/arena/generated/ground-ember.svg'}
   };
   const generatedAssets={pilots:new Map(),weapons:new Map(),obstacles:new Map(),grounds:new Map()};
@@ -1020,9 +1020,9 @@
       const visualSize=prop.kind==='tree'?size*.68:prop.kind==='stump'?size*.9:size;
       const half=visualSize/2;ctx.save();ctx.translate(Math.round(prop.x),Math.round(prop.y));ctx.imageSmoothingEnabled=false;
       ctx.fillStyle='#10251d99';ctx.beginPath();ctx.ellipse(3,half*.48,half*.78,half*.25,0,0,Math.PI*2);ctx.fill();
-      const generatedPropKey={stump:'stump',spikes:'spikes'}[prop.kind],generatedProp=generatedPropKey&&generatedImage('obstacles',generatedPropKey);
+      const generatedPropKey={stump:'stump',spikes:'spikes',bush:'bushAi'}[prop.kind],generatedProp=generatedPropKey&&generatedImage('obstacles',generatedPropKey);
       if(generatedProp){
-        const dimensions={tree:[visualSize*1.08,visualSize*.96],stump:[visualSize*1.22,visualSize*.82],spikes:[visualSize*1.5,visualSize*.72]}[prop.kind]||[visualSize,visualSize];
+        const dimensions={tree:[visualSize*1.08,visualSize*.96],stump:[visualSize*1.22,visualSize*.82],spikes:[visualSize*1.5,visualSize*.72],bush:[visualSize*1.85,visualSize*1.25]}[prop.kind]||[visualSize,visualSize];
         const [spriteWidth,spriteHeight]=dimensions;ctx.drawImage(generatedProp,Math.round(-spriteWidth/2),Math.round(-spriteHeight*.74),Math.round(spriteWidth),Math.round(spriteHeight));
       }else if(prop.kind==='tree'){
         drawSlayTree(visualSize,Math.round(prop.x));
@@ -1130,15 +1130,15 @@
   function drawObstacles(){
     for(const [index,[x,y,w,h]] of (mapDef().obstacles||[]).entries()){
       if(!visibleRect(x,y,w,h))continue;
-      if(map==='tidal'){
-        if(index%7===0){if(!drawGeneratedObstacle('crates',x,y,w,h,.78))drawCrateStack(x,y,w,h,index)}
-        else drawSlayWall(x,y,w,h,index,{base:'#586266',dark:'#2f3637',mid:'#66706e',light:'#9aa28e',line:'#3e4748',mark:'#c3c390',outline:'#1d2528'});
-      }else if(map==='glass'){
-        if(index%4===1){if(!drawGeneratedObstacle('crates',x,y,w,h,.78))drawCrateStack(x,y,w,h,index)}
-        else drawSlayWall(x,y,w,h,index,{base:'#686e68',dark:'#303936',mid:'#7d8477',light:'#a9ad8f',line:'#4b534d',mark:'#d0c58a',outline:'#272e2b'});
-      }else{
-        if(index%5===3){if(!drawGeneratedObstacle('crates',x,y,w,h,.78))drawCrateStack(x,y,w,h,index)}
-        else drawSlayWall(x,y,w,h,index,{base:'#65565b',dark:'#302b34',mid:'#806b70',light:'#b39a8e',line:'#51424c',mark:'#d2a078',outline:'#282129'});
+      // AI-drawn obstacle sprites are distributed by cluster index so the
+      // map reads as a hand-placed Slay.one arena instead of one repeated wall.
+      const spriteKey=index%13===0?'barricadeAi':index%11===0?'bushAi':index%7===0?'cratesAi':'stoneAi';
+      if(!drawGeneratedObstacle(spriteKey,x,y,w,h,.86)){
+        if(index%7===0)drawCrateStack(x,y,w,h,index);
+        else if(map==='ember')drawRuinObstacle(x,y,w,h,index);
+        else drawSlayWall(x,y,w,h,index,map==='glass'
+          ?{base:'#686e68',dark:'#303936',mid:'#7d8477',light:'#a9ad8f',line:'#4b534d',mark:'#d0c58a',outline:'#272e2b'}
+          :{base:'#586266',dark:'#2f3637',mid:'#66706e',light:'#9aa28e',line:'#3e4748',mark:'#c3c390',outline:'#1d2528'});
       }
     }
   }
