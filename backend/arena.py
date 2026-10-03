@@ -64,6 +64,8 @@ PROJECTILE_SPEED_SCALE = .85
 MISSILE_SPEED_SCALE = .82
 HOMING_TURN_SCALE = .70
 MISSILE_KINDS = {"rocket", "seeker", "cursor", "bug"}
+PORTAL_COOLDOWN_SECONDS = .24
+PORTAL_EXIT_PADDING = 20
 
 # Original arenas with a compact pixel-art forest and ruins theme.
 MAPS = {
@@ -72,7 +74,9 @@ MAPS = {
         "cover": [[48, 230, 100, 62], [812, 378, 100, 62], [315, 112, 76, 56],
                   [569, 470, 76, 56], [350, 405, 70, 50], [540, 185, 70, 50],
                   [220, 180, 56, 40], [680, 180, 56, 40], [220, 430, 56, 40],
-                  [680, 430, 56, 40]],
+                  [680, 430, 56, 40], [174, 350, 48, 32], [734, 260, 48, 34],
+                  [384, 72, 46, 30], [530, 72, 46, 30], [382, 364, 44, 30],
+                  [534, 356, 44, 30]],
         # Walls are arranged as broken rooms and bridge-entry chokes.  The
         # openings are intentional: players can rotate around each cluster
         # instead of facing a repeated left/right obstacle grid.
@@ -90,6 +94,7 @@ MAPS = {
                       [790, 468, 54, 24], [846, 492, 24, 68], [802, 544, 48, 22],
                       [346, 198, 48, 22], [574, 198, 50, 22], [346, 486, 48, 22],
                       [574, 486, 50, 22], [390, 306, 40, 22], [530, 306, 40, 22],
+                      [190, 390, 32, 20], [414, 350, 22, 22], [544, 368, 22, 22],
                       # A small river-bank block keeps the central sightline
                       # readable and gives ricochet rounds a nearby wall.
                       [438, 278, 12, 22]],
@@ -109,6 +114,9 @@ MAPS = {
             {"kind": "torch", "x": 398, "y": 184, "size": 22}, {"kind": "torch", "x": 562, "y": 184, "size": 22},
             {"kind": "banner", "x": 332, "y": 92, "size": 26}, {"kind": "banner", "x": 628, "y": 92, "size": 26},
             {"kind": "spikes", "x": 376, "y": 232, "size": 30}, {"kind": "spikes", "x": 584, "y": 232, "size": 30},
+            {"kind": "bush", "x": 286, "y": 352, "size": 28}, {"kind": "bush", "x": 650, "y": 382, "size": 28},
+            {"kind": "reed", "x": 402, "y": 340, "size": 24}, {"kind": "reed", "x": 558, "y": 352, "size": 24},
+            {"kind": "torch", "x": 268, "y": 392, "size": 20}, {"kind": "torch", "x": 694, "y": 286, "size": 20},
         ],
         "pickup_points": [
             [140, 80, "lobber"], [480, 76, "flame"], [820, 80, "rotary"],
@@ -127,7 +135,9 @@ MAPS = {
         "cover": [[66, 215, 70, 136], [824, 286, 70, 136], [286, 112, 72, 72],
                   [600, 450, 72, 72], [282, 450, 72, 72], [606, 112, 72, 72],
                   [250, 175, 56, 35], [654, 175, 56, 35], [250, 355, 56, 30],
-                  [654, 355, 56, 30], [400, 145, 48, 28], [512, 425, 48, 28]],
+                  [654, 355, 56, 30], [400, 145, 48, 28], [512, 425, 48, 28],
+                  [120, 360, 54, 28], [786, 360, 54, 28], [420, 208, 42, 34],
+                  [496, 208, 42, 34], [420, 548, 48, 28], [520, 548, 48, 28]],
         "obstacles": [[102, 96, 58, 24], [102, 120, 24, 72], [144, 170, 52, 24],
                       [250, 96, 48, 24], [306, 120, 26, 52], [348, 158, 48, 22],
                       [616, 98, 58, 24], [672, 122, 24, 70], [704, 170, 52, 24],
@@ -141,7 +151,8 @@ MAPS = {
                       [616, 514, 58, 24], [672, 536, 24, 66], [714, 582, 52, 22],
                       [780, 510, 50, 24], [836, 534, 24, 66],
                       [354, 374, 46, 22], [566, 374, 46, 22], [392, 404, 40, 22],
-                      [534, 404, 40, 22]],
+                      [534, 404, 40, 22], [410, 250, 24, 20], [526, 250, 24, 20],
+                      [430, 548, 22, 22], [512, 552, 22, 22]],
         "props": [
             {"kind": "tree", "x": 85, "y": 120, "size": 42}, {"kind": "tree", "x": 117, "y": 452, "size": 42},
             {"kind": "tree", "x": 847, "y": 120, "size": 42}, {"kind": "tree", "x": 844, "y": 508, "size": 42},
@@ -156,6 +167,10 @@ MAPS = {
             {"kind": "torch", "x": 336, "y": 364, "size": 22}, {"kind": "torch", "x": 624, "y": 364, "size": 22},
             {"kind": "banner", "x": 350, "y": 98, "size": 26}, {"kind": "banner", "x": 620, "y": 98, "size": 26},
             {"kind": "spikes", "x": 300, "y": 382, "size": 30}, {"kind": "spikes", "x": 660, "y": 382, "size": 30},
+            {"kind": "bush", "x": 190, "y": 286, "size": 28}, {"kind": "bush", "x": 770, "y": 288, "size": 28},
+            {"kind": "reed", "x": 390, "y": 286, "size": 24}, {"kind": "reed", "x": 566, "y": 304, "size": 24},
+            {"kind": "torch", "x": 430, "y": 356, "size": 20}, {"kind": "torch", "x": 530, "y": 356, "size": 20},
+            {"kind": "banner", "x": 178, "y": 388, "size": 24}, {"kind": "banner", "x": 782, "y": 388, "size": 24},
         ],
         "pickup_points": [
             [84, 80, "lobber"], [300, 80, "flame"], [660, 80, "rotary"], [876, 80, "flare"],
@@ -173,7 +188,9 @@ MAPS = {
         "cover": [[294, 94, 94, 72], [574, 94, 94, 72], [294, 475, 94, 72],
                   [574, 475, 94, 72], [238, 180, 44, 36], [678, 180, 44, 36],
                   [238, 350, 44, 36], [678, 360, 44, 36], [400, 120, 48, 30],
-                  [512, 480, 48, 30]],
+                  [512, 480, 48, 30], [108, 350, 48, 28], [804, 320, 48, 28],
+                  [388, 238, 46, 32], [526, 238, 46, 32], [388, 390, 46, 32],
+                  [526, 390, 46, 32]],
         "obstacles": [[88, 96, 58, 24], [88, 120, 24, 72], [132, 170, 52, 24],
                       [214, 108, 48, 24], [270, 132, 26, 52], [312, 170, 48, 22],
                       [600, 96, 58, 24], [656, 120, 24, 72], [700, 168, 52, 24],
@@ -187,7 +204,9 @@ MAPS = {
                       [606, 504, 58, 24], [664, 528, 24, 70], [708, 580, 52, 22],
                       [786, 498, 50, 24], [842, 522, 24, 70], [800, 578, 50, 22],
                       [350, 202, 46, 22], [564, 202, 46, 22], [350, 484, 46, 22],
-                      [564, 484, 46, 22], [392, 326, 40, 22], [530, 326, 40, 22]],
+                      [564, 484, 46, 22], [392, 326, 40, 22], [530, 326, 40, 22],
+                      [190, 390, 32, 20], [410, 258, 22, 22], [528, 260, 22, 22],
+                      [430, 520, 22, 22], [512, 526, 22, 22]],
         "props": [
             {"kind": "tree", "x": 68, "y": 220, "size": 42}, {"kind": "tree", "x": 890, "y": 412, "size": 40},
             {"kind": "tree", "x": 262, "y": 190, "size": 34}, {"kind": "tree", "x": 695, "y": 445, "size": 34},
@@ -202,6 +221,10 @@ MAPS = {
             {"kind": "torch", "x": 344, "y": 188, "size": 22}, {"kind": "torch", "x": 616, "y": 188, "size": 22},
             {"kind": "banner", "x": 336, "y": 98, "size": 26}, {"kind": "banner", "x": 626, "y": 98, "size": 26},
             {"kind": "spikes", "x": 378, "y": 372, "size": 30}, {"kind": "spikes", "x": 580, "y": 372, "size": 30},
+            {"kind": "bush", "x": 188, "y": 352, "size": 28}, {"kind": "bush", "x": 770, "y": 328, "size": 28},
+            {"kind": "reed", "x": 420, "y": 286, "size": 24}, {"kind": "reed", "x": 540, "y": 306, "size": 24},
+            {"kind": "torch", "x": 312, "y": 348, "size": 20}, {"kind": "torch", "x": 648, "y": 348, "size": 20},
+            {"kind": "banner", "x": 410, "y": 178, "size": 24}, {"kind": "banner", "x": 550, "y": 178, "size": 24},
         ],
         "pickup_points": [
             [80, 80, "lobber"], [480, 80, "flame"], [880, 80, "rotary"], [80, 320, "flare"],
@@ -223,14 +246,26 @@ MAPS = {
 MAPS["tidal"].update({
     "water": [[454, 18, 62, 212], [454, 278, 62, 250], [454, 576, 62, 46]],
     "bridges": [[435, 54, 90, 48], [435, 224, 90, 56], [435, 518, 90, 58]],
+    "portals": [
+        {"id": "tidal-west-gate", "pair": "tidal-east-gate", "x": 218, "y": 445, "radius": 18},
+        {"id": "tidal-east-gate", "pair": "tidal-west-gate", "x": 742, "y": 445, "radius": 18},
+    ],
 })
 MAPS["glass"].update({
     "water": [[26, 438, 904, 76]],
     "bridges": [[172, 398, 56, 96], [522, 398, 56, 96], [682, 398, 56, 96]],
+    "portals": [
+        {"id": "glass-north-gate", "pair": "glass-south-gate", "x": 480, "y": 250, "radius": 18},
+        {"id": "glass-south-gate", "pair": "glass-north-gate", "x": 480, "y": 570, "radius": 18},
+    ],
 })
 MAPS["ember"].update({
     "water": [[26, 408, 908, 70]],
     "bridges": [[231, 394, 48, 98], [470, 394, 48, 98], [651, 394, 48, 98]],
+    "portals": [
+        {"id": "ember-north-gate", "pair": "ember-south-gate", "x": 480, "y": 250, "radius": 18},
+        {"id": "ember-south-gate", "pair": "ember-north-gate", "x": 480, "y": 550, "radius": 18},
+    ],
 })
 
 
@@ -505,6 +540,23 @@ def _assert_map_geometry():
                         prop_radius + other_radius:
                     raise ValueError(f"{map_id} has overlapping props")
 
+        portals = map_def.get("portals", ())
+        portal_ids = {portal.get("id") for portal in portals}
+        if len(portal_ids) != len(portals) or None in portal_ids:
+            raise ValueError(f"{map_id} has duplicate or missing portal ids")
+        for portal in portals:
+            pair_id = portal.get("pair")
+            pair = next((candidate for candidate in portals if candidate.get("id") == pair_id), None)
+            if pair is None or pair.get("pair") != portal.get("id"):
+                raise ValueError(f"{map_id} has an unpaired portal")
+            if portal.get("radius", 0) <= 0:
+                raise ValueError(f"{map_id} has an invalid portal radius")
+            blocked_obstacle = next((obstacle for obstacle in obstacles
+                                     if _circle_to_rectangle_distance(
+                                         portal["x"], portal["y"], portal["radius"], obstacle) < 0), None)
+            if _geometry_in_water(map_def, portal["x"], portal["y"], portal["radius"]) or blocked_obstacle:
+                raise ValueError(f"{map_id} has portal {portal['id']} inside solid geometry {blocked_obstacle}")
+
 
 def _scale_map_geometry():
     """Scale the original layout into the larger world once at import time."""
@@ -535,6 +587,10 @@ def _scale_map_geometry():
             [round(x * MAP_SCALE), round(y * MAP_SCALE), resource]
             for x, y, resource in map_def.get("support_points", ())
         ]
+        for portal in map_def.get("portals", ()):
+            portal["x"] = round(portal["x"] * MAP_SCALE)
+            portal["y"] = round(portal["y"] * MAP_SCALE)
+            portal["radius"] = round(portal["radius"] * MAP_SCALE)
         map_def["obstacles"] = _close_tight_obstacle_gaps(map_def["obstacles"])
         map_def["obstacles"] = _trim_obstacle_overlaps(map_def["obstacles"])
         _nudge_blocking_props(map_def)
@@ -696,6 +752,7 @@ class Player:
     dead_until: float = 0
     invincible_until: float = field(default_factory=lambda: time.monotonic() + SPAWN_INVINCIBILITY)
     switch_until: float = 0
+    portal_cooldown_until: float = 0
 
     def __post_init__(self):
         if self.is_bot:
@@ -811,6 +868,77 @@ def collides(map_id: str, x: float, y: float, radius: float = 16, *, include_wat
     return any(math.hypot(x - prop["x"], y - prop["y"]) < radius + prop["size"] * .34
                for prop in MAPS[map_id].get("props", ())
                if prop["kind"] in BLOCKING_PROP_KINDS)
+
+
+def _portal_at(map_id: str, x: float, y: float, radius: float = 0, *, ignored_id=None):
+    for portal in MAPS[map_id].get("portals", ()):
+        if portal.get("id") == ignored_id:
+            continue
+        if math.hypot(x - portal["x"], y - portal["y"]) <= portal["radius"] + radius:
+            return portal
+    return None
+
+
+def _portal_pair(map_id: str, portal: dict):
+    return next((candidate for candidate in MAPS[map_id].get("portals", ())
+                 if candidate.get("id") == portal.get("pair")), None)
+
+
+def _portal_exit(map_id: str, portal: dict, dx: float, dy: float, radius: float):
+    pair = _portal_pair(map_id, portal)
+    if not pair:
+        return None
+    length = math.hypot(dx, dy)
+    if length < .001:
+        dx, dy = pair["x"] - portal["x"], pair["y"] - portal["y"]
+        length = math.hypot(dx, dy) or 1
+    ux, uy = dx / length, dy / length
+    offsets = (pair["radius"] + radius + PORTAL_EXIT_PADDING,
+               pair["radius"] + radius + PORTAL_EXIT_PADDING + 18,
+               pair["radius"] + radius + PORTAL_EXIT_PADDING + 36)
+    for offset in offsets:
+        x, y = pair["x"] + ux * offset, pair["y"] + uy * offset
+        if not collides(map_id, x, y, radius):
+            return x, y
+    if not collides(map_id, pair["x"], pair["y"], radius):
+        return pair["x"], pair["y"]
+    return None
+
+
+def _maybe_teleport_player(room: Room, player: Player, now: float):
+    if now < player.portal_cooldown_until:
+        return False
+    portal = _portal_at(room.map_id, player.x, player.y, 15)
+    if not portal:
+        return False
+    if player.knockback_until > now and math.hypot(player.knockback_x, player.knockback_y) > .1:
+        dx, dy = player.knockback_x, player.knockback_y
+    elif math.hypot(player.move_x, player.move_y) > .01:
+        dx, dy = player.move_x, player.move_y
+    else:
+        dx, dy = player.aim_x - player.x, player.aim_y - player.y
+    exit_point = _portal_exit(room.map_id, portal, dx, dy, 15)
+    if not exit_point:
+        return False
+    player.x, player.y = exit_point
+    player.portal_cooldown_until = now + PORTAL_COOLDOWN_SECONDS
+    return True
+
+
+def _maybe_teleport_projectile(room: Room, projectile: dict, old_x: float, old_y: float,
+                               now: float):
+    if now < projectile.get("portal_cooldown_until", 0):
+        return False
+    portal = _portal_at(room.map_id, projectile["x"], projectile["y"], projectile.get("r", 4))
+    if not portal or _portal_at(room.map_id, old_x, old_y, projectile.get("r", 4)) is portal:
+        return False
+    exit_point = _portal_exit(room.map_id, portal, projectile.get("vx", 0), projectile.get("vy", 0),
+                              projectile.get("r", 4))
+    if not exit_point:
+        return False
+    projectile["x"], projectile["y"] = exit_point
+    projectile["portal_cooldown_until"] = now + PORTAL_COOLDOWN_SECONDS
+    return True
 
 
 def has_line_of_sight(map_id: str, x1: float, y1: float, x2: float, y2: float):
@@ -1309,6 +1437,7 @@ def _move_player(room: Room, player: Player, dt: float, now: float):
         decay = math.exp(-dt * 8)
         player.knockback_x *= decay
         player.knockback_y *= decay
+        _maybe_teleport_player(room, player, now)
         if in_water(room.map_id, player.x, player.y, 15):
             _fall_into_water(room, player, now)
             return
@@ -1332,6 +1461,7 @@ def _move_player(room: Room, player: Player, dt: float, now: float):
         player.x += dx
     if not collides(room.map_id, player.x, player.y + dy):
         player.y += dy
+    _maybe_teleport_player(room, player, now)
     if player.aiming and not (mx or my):
         if not player.aim_started:
             player.aim_started = now
@@ -1752,6 +1882,47 @@ def _detonate_energy_orb(room: Room, orb: dict, now: float, *, combo=False):
     _blast(room, orb, now)
 
 
+def _is_missile_projectile(projectile: dict):
+    return projectile.get("kind") in MISSILE_KINDS and projectile.get("blast", 0) > 0
+
+
+def _segment_point_distance(px: float, py: float, x1: float, y1: float,
+                            x2: float, y2: float):
+    dx, dy = x2 - x1, y2 - y1
+    length_squared = dx * dx + dy * dy
+    if length_squared < 1e-9:
+        return math.hypot(px - x1, py - y1)
+    progress = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / length_squared))
+    nearest_x, nearest_y = x1 + progress * dx, y1 + progress * dy
+    return math.hypot(px - nearest_x, py - nearest_y)
+
+
+def _missile_collision(room: Room, projectile: dict, old_x: float, old_y: float,
+                       next_x: float, next_y: float):
+    if not _is_missile_projectile(projectile):
+        return None
+    for other in room.projectiles:
+        if other is projectile or other.get("detonated") or not _is_missile_projectile(other):
+            continue
+        reach = projectile.get("r", 8) + other.get("r", 8) + 2
+        if _segment_point_distance(other["x"], other["y"], old_x, old_y, next_x, next_y) <= reach:
+            return other
+    return None
+
+
+def _detonate_missile_pair(room: Room, first: dict, second: dict, x: float, y: float, now: float):
+    if first.get("detonated") or second.get("detonated"):
+        return
+    midpoint_x = (x + second["x"]) / 2
+    midpoint_y = (y + second["y"]) / 2
+    first["x"], first["y"] = midpoint_x, midpoint_y
+    second["x"], second["y"] = midpoint_x, midpoint_y
+    first["detonated"] = True
+    second["detonated"] = True
+    _impact(room, first, now)
+    _impact(room, second, now)
+
+
 def _advance_projectiles(room: Room, dt: float, now: float):
     remaining = []
     for projectile in room.projectiles:
@@ -1772,6 +1943,16 @@ def _advance_projectiles(room: Room, dt: float, now: float):
             old_x, old_y = projectile["x"], projectile["y"]
             nx = old_x + projectile["vx"] * dt / steps
             ny = old_y + projectile["vy"] * dt / steps
+            projectile["x"], projectile["y"] = nx, ny
+            if _maybe_teleport_projectile(room, projectile, old_x, old_y, now):
+                # Traversing a portal preserves velocity and does not consume
+                # the projectile's local range in the destination arena lane.
+                continue
+            missile = _missile_collision(room, projectile, old_x, old_y, nx, ny)
+            if missile:
+                _detonate_missile_pair(room, projectile, missile, nx, ny, now)
+                collided = True
+                break
             source = room.players.get(projectile["owner"])
             if projectile["kind"] == "energy_ray" and source:
                 orb = next((candidate for candidate in room.projectiles
@@ -1780,7 +1961,6 @@ def _advance_projectiles(room: Room, dt: float, now: float):
                             math.hypot(candidate["x"] - nx, candidate["y"] - ny) <=
                             candidate["r"] + projectile["r"]), None)
                 if orb:
-                    projectile["x"], projectile["y"] = nx, ny
                     _detonate_energy_orb(room, orb, now, combo=True)
                     collided = True
                     break
@@ -1792,7 +1972,6 @@ def _advance_projectiles(room: Room, dt: float, now: float):
                            p.id not in hit_targets and
                            math.hypot(p.x - nx, p.y - ny) <= 17 + projectile["r"]), None)
             if target:
-                projectile["x"], projectile["y"] = nx, ny
                 projectile["distance_travelled"] = projectile.get("distance_travelled", 0) + \
                     math.hypot(nx - old_x, ny - old_y)
                 _impact(room, projectile, now, target)
@@ -1826,7 +2005,6 @@ def _advance_projectiles(room: Room, dt: float, now: float):
                 _impact(room, projectile, now)
                 collided = True
                 break
-            projectile["x"], projectile["y"] = nx, ny
             projectile["distance_travelled"] = projectile.get("distance_travelled", 0) + \
                 math.hypot(nx - old_x, ny - old_y)
             if (projectile.get("max_range") and
