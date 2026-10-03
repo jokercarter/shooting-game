@@ -2,7 +2,7 @@
 
 本项目的 GitHub 同步根目录是当前目录：
 
-`C:\\Users\\90631\\Desktop\\shooting game`
+`C:\Users\90631\Desktop\shooting game`
 
 远程仓库：<https://github.com/jokercarter/shooting-game>
 
