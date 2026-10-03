@@ -80,19 +80,20 @@
     }
   }
   function generatedImage(group,key){const image=generatedAssets[group]?.get(key);return image&&image.complete&&image.naturalWidth>0?image:null}
-  function drawGeneratedObstacle(key,x,y,w,h,fit=1){
+  function obstacleSpriteKey(index){return index%13===0?'barricadeAi':index%11===0?'bushAi':index%7===0?'cratesAi':'stoneAi'}
+  function drawGeneratedObstacle(key,x,y,w,h){
     const image=generatedImage('obstacles',key);if(!image)return false;
-    // Every collision rectangle owns one complete sprite.  Contain the image
-    // inside its rectangle instead of clipping a sprite atlas at the wall
-    // edge; this keeps each crate, bush, barricade, and stone block readable.
-    const rotate=h>w*1.35 && (key==='stoneAi'||key==='barricadeAi');
-    const sourceWidth=rotate?image.naturalHeight:image.naturalWidth;
-    const sourceHeight=rotate?image.naturalWidth:image.naturalHeight;
-    const scale=Math.min(w/sourceWidth,h/sourceHeight)*fit;
-    const dw=Math.max(2,Math.round(sourceWidth*scale)),dh=Math.max(2,Math.round(sourceHeight*scale));
+    // The server rectangle is the authoritative obstacle footprint.  The
+    // tight, alpha-cropped source image is drawn in full into that exact
+    // rectangle, so no transparent atlas padding can extend collision past
+    // the picture and no clipping can remove part of a complete obstacle.
+    // Turn the landscape sprites for vertical wall chunks so their full
+    // silhouette still fills the same collision rectangle.
+    const rotate=h>w*1.35;
+    const drawWidth=rotate?h:w,drawHeight=rotate?w:h;
     ctx.save();ctx.imageSmoothingEnabled=false;ctx.translate(Math.round(x+w/2),Math.round(y+h/2));
     if(rotate)ctx.rotate(Math.PI/2);
-    ctx.drawImage(image,Math.round(-dw/2),Math.round(-dh/2),dw,dh);ctx.restore();return true;
+    ctx.drawImage(image,Math.round(-drawWidth/2),Math.round(-drawHeight/2),Math.round(drawWidth),Math.round(drawHeight));ctx.restore();return true;
   }
   function drawSlayWall(x,y,w,h,variant=0,palette){
     // Slay-style masonry: a quiet grout bed plus offset, individually chipped
@@ -1141,8 +1142,8 @@
       if(!visibleRect(x,y,w,h))continue;
       // AI-drawn obstacle sprites are distributed by cluster index so the
       // map reads as a hand-placed Slay.one arena instead of one repeated wall.
-      const spriteKey=index%13===0?'barricadeAi':index%11===0?'bushAi':index%7===0?'cratesAi':'stoneAi';
-      if(!drawGeneratedObstacle(spriteKey,x,y,w,h,.98)){
+      const spriteKey=obstacleSpriteKey(index);
+      if(!drawGeneratedObstacle(spriteKey,x,y,w,h)){
         if(index%7===0)drawCrateStack(x,y,w,h,index);
         else if(map==='ember')drawRuinObstacle(x,y,w,h,index);
         else drawSlayWall(x,y,w,h,index,map==='glass'
