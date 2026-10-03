@@ -870,6 +870,65 @@ def test_projectiles_stop_at_walls_but_pass_through_grass(kind):
     assert room.projectiles[0]["x"] > cover[0] + cover[2]
 
 
+def test_missiles_colliding_detonate_together():
+    now = time.monotonic()
+    room = arena.Room(code="MISSILE-COLLISION", map_id="tidal")
+    first_owner = make_player("first-owner", x=300, y=300)
+    second_owner = make_player("second-owner", x=2600, y=1700)
+    room.players = {first_owner.id: first_owner, second_owner.id: second_owner}
+
+    def missile(projectile_id, owner, x, velocity):
+        return {
+            "id": projectile_id, "owner": owner, "weapon": "flare", "kind": "rocket",
+            "x": x, "y": 700.0, "vx": velocity, "vy": 0.0, "r": 8.0,
+            "life": 5.0, "age": 0.0, "damage": 60.0, "blast": 69.0,
+            "bounces": 0, "turn": 0, "pierce": 0, "hit_targets": [],
+            "target_x": 2000.0, "target_y": 700.0, "color": "#ff795f",
+        }
+
+    first = missile(1, first_owner.id, 1100.0, 400.0)
+    second = missile(2, second_owner.id, 1140.0, -400.0)
+    room.projectiles = [first, second]
+
+    arena._advance_projectiles(room, .05, now)
+
+    assert first["detonated"] is True
+    assert second["detonated"] is True
+    assert room.projectiles == []
+    assert first["x"] == pytest.approx(second["x"])
+    assert first["y"] == pytest.approx(second["y"])
+
+
+def test_portals_pair_and_preserve_direction_for_players_and_projectiles():
+    now = time.monotonic()
+    room = arena.Room(code="PORTALS", map_id="glass")
+    player = make_player("portal-pilot", x=1500, y=650)
+    player.move_y = 1
+    room.players[player.id] = player
+
+    arena._move_player(room, player, .5, now)
+
+    north, south = arena.MAPS["glass"]["portals"]
+    assert player.y > south["y"]
+    assert player.x == pytest.approx(south["x"])
+
+    projectile = {
+        "id": 4, "owner": player.id, "weapon": "pulse", "kind": "bolt",
+        "x": north["x"], "y": north["y"] - 180, "vx": 0.0, "vy": 500.0,
+        "r": 4, "life": 5.0, "age": 0.0, "damage": 28, "blast": 0,
+        "bounces": 0, "turn": 0, "pierce": 0, "hit_targets": [],
+        "target_x": north["x"], "target_y": south["y"],
+    }
+    room.projectiles = [projectile]
+
+    arena._advance_projectiles(room, .4, now)
+
+    assert projectile["y"] > south["y"]
+    assert projectile["vx"] == 0
+    assert projectile["vy"] == 500
+    assert len(room.projectiles) == 1
+
+
 def test_explosion_damage_falls_off_with_distance_and_has_an_edge():
     now = time.monotonic()
     room = arena.Room(code="BLAST", map_id="tidal")

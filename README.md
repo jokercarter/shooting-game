@@ -17,6 +17,7 @@ Morrow Fields 是一款原创像素风俯视角在线竞技场游戏。玩家在
 - 15 种功能不同的武器，包括近距离武器、爆炸武器、追踪武器、能量光束和治疗武器。
 - 地图中的武器、血包和护甲会在固定补给点生成，并在拾取后重新出现。
 - 岩石、箱子、树木和尖刺会阻挡角色与弹道；草丛可以隐藏角色，但不会阻挡武器。
+- 每张地图都有一对成对传送门；角色、子弹和导弹穿过后会保留移动方向抵达另一端。
 - 草丛中的玩家在同一片草丛内可以互相看见；开火或受到伤害后会暴露 3 秒。
 - 导弹拥有像素爆炸、碎片、烟尘、屏幕闪光和镜头抖动效果。
 - 支持房间码联机、机器人对手、旁观、房间聊天和短回放。
@@ -29,6 +30,8 @@ Morrow Fields 是一款原创像素风俯视角在线竞技场游戏。玩家在
 | Mosswood Crossing | 森林与纵向河流 | 桥梁、草丛和分散的掩体适合迂回和伏击 |
 | Sunvale Orchard | 果园与横向河流 | 多条桥路连接两侧，适合争夺中央区域 |
 | Redleaf Ruins | 赤色遗迹与浅滩 | 遗迹墙体、草丛和补给点形成多层交战路线 |
+
+三张地图都放置了成对传送门，用于快速换边和制造绕后路线。
 
 ### 操作方式
 
@@ -80,6 +83,7 @@ Morrow Fields is an original pixel-art, top-down online arena game. Move through
 - Fifteen weapons with different roles, including close-range weapons, explosives, seeker weapons, energy beams, and healing weapons.
 - Weapons, health packs, and armor spawn at fixed supply points and return after pickup.
 - Rocks, crates, trees, and spikes block players and projectiles; grass can hide players without blocking weapons.
+- Each map has a paired portal route. Players, bullets, and missiles keep their travel direction when they teleport.
 - Players inside the same grass patch can see one another. Firing or taking damage reveals a hidden player for three seconds.
 - Missiles use layered pixel explosions, debris, smoke, screen flashes, and camera shake.
 - Room-code multiplayer, bot opponents, spectating, room chat, and short replays are supported.
@@ -92,6 +96,8 @@ Morrow Fields is an original pixel-art, top-down online arena game. Move through
 | Mosswood Crossing | Forest and a vertical river | Bridges, grass, and scattered cover support flanking and ambushes |
 | Sunvale Orchard | Orchard and a horizontal river | Multiple bridges connect both sides and make the center contested |
 | Redleaf Ruins | Red ruins and shallow crossings | Ruin walls, grass, and supply points create layered battle routes |
+
+Every map includes a paired portal route for fast rotations and flank opportunities.
 
 ### Controls
 

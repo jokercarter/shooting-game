@@ -552,7 +552,17 @@
         playSound('shot',bullet.kind||style);
       }
       const old=oldBullets.get(bullet.id);
-      if(old)trail.points.push({x:old.x,y:old.y,at:now});
+      const jump=old&&Number.isFinite(old.x)&&Number.isFinite(old.y)
+        ?Math.hypot(bullet.x-old.x,bullet.y-old.y):0;
+      if(jump>260){
+        // A portal jump should never paint a false trail across the whole map.
+        trail.points=[];
+        const color=map==='ember'?'#d98cff':map==='glass'?'#77e4f0':'#9cf4c2';
+        rings.push({x:old.x,y:old.y,life:260,max:260,color,r:18,kind:'prism',blast:0,power:1,seed:bullet.id,layer:'portal'});
+        rings.push({x:bullet.x,y:bullet.y,life:360,max:360,color,r:25,kind:'prism',blast:0,power:1,seed:bullet.id+7,layer:'portal'});
+        burst(old.x,old.y,color,displaySettings.lowEffects?2:7,'prism');
+        burst(bullet.x,bullet.y,color,displaySettings.lowEffects?2:7,'prism');
+      }else if(old)trail.points.push({x:old.x,y:old.y,at:now});
       trail.points.push({x:bullet.x,y:bullet.y,at:now});
       if(trail.points.length>9)trail.points.shift();
     }
@@ -849,6 +859,27 @@
         if(horizontal)ctx.fillRect(sparkle+12,h-12-((sparkle+flow)%7),6,2);
       }
       ctx.restore();ctx.globalAlpha=1;edgePath(5);ctx.strokeStyle=waterPalette.outline;ctx.lineWidth=3;ctx.stroke();ctx.restore();
+    }
+  }
+  function drawPortals(){
+    const now=performance.now()/1000;
+    const palette=map==='ember'
+      ? {outer:'#d98cff',mid:'#9d5ad3',core:'#f2c6ff',spark:'#ffe6ff'}
+      : map==='glass'
+        ? {outer:'#77e4f0',mid:'#3da8c5',core:'#c8fbff',spark:'#e8ffff'}
+        : {outer:'#9cf4c2',mid:'#36b58c',core:'#d4ffe2',spark:'#f4fff2'};
+    for(const [index,portal] of (mapDef().portals||[]).entries()){
+      const radius=portal.radius||56;if(!visibleRect(portal.x-radius,portal.y-radius,radius*2,radius*2,40))continue;
+      const pulse=.88+Math.sin(now*4.2+index*.9)*.12,spin=now*.9+index*.7;
+      ctx.save();ctx.translate(Math.round(portal.x),Math.round(portal.y));ctx.imageSmoothingEnabled=false;
+      ctx.globalAlpha=.28;ctx.fillStyle=palette.outer;ctx.beginPath();ctx.arc(0,2,radius*1.22*pulse,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=.8;ctx.fillStyle='#0b211dcc';ctx.beginPath();ctx.arc(0,0,radius*.94,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=.95;ctx.strokeStyle=palette.mid;ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,radius*.76,-spin,Math.PI*1.55-spin);ctx.stroke();
+      ctx.strokeStyle=palette.outer;ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,radius*.56,Math.PI*.2-spin,Math.PI*1.8-spin);ctx.stroke();
+      ctx.globalAlpha=.94;ctx.fillStyle=palette.core;ctx.beginPath();ctx.arc(0,0,radius*.36,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=.8;ctx.fillStyle=palette.spark;ctx.fillRect(-3,-radius*.52,6,5);ctx.fillRect(radius*.42,-3,5,6);ctx.fillRect(-2,radius*.42,5,5);ctx.fillRect(-radius*.52,-2,5,5);
+      ctx.globalAlpha=.9;ctx.strokeStyle=palette.core;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-radius*.82,-radius*.16);ctx.lineTo(-radius*.62,0);ctx.lineTo(-radius*.82,radius*.16);ctx.moveTo(radius*.82,-radius*.16);ctx.lineTo(radius*.62,0);ctx.lineTo(radius*.82,radius*.16);ctx.stroke();
+      ctx.restore();
     }
   }
   function drawBridges(){
@@ -1466,6 +1497,11 @@
       const x=(i*37+11)%mw,y=(i*53+19)%mh;painter.fillStyle=i%2?'#849451':'#395f38';painter.fillRect(x,y,2,2);
     }
     for(const [x,y,w,h] of def.water||[]){painter.fillStyle='#1d6873';painter.fillRect(x*sx,y*sy,w*sx,h*sy)}
+    for(const portal of def.portals||[]){
+      painter.fillStyle=map==='ember'?'#c982e7':map==='glass'?'#70d9e7':'#7ce3a8';
+      painter.beginPath();painter.arc(portal.x*sx,portal.y*sy,Math.max(2,portal.radius*sx*.34),0,Math.PI*2);painter.fill();
+      painter.strokeStyle='#ecffe9';painter.lineWidth=1;painter.stroke();
+    }
     for(const [x,y,w,h] of def.cover||[]){painter.fillStyle='#78934d';painter.fillRect(x*sx,y*sy,w*sx,h*sy)}
     for(const prop of def.props||[]){
       painter.fillStyle=prop.kind==='tree'?'#284a30':prop.kind==='stump'?'#8f7044':prop.kind==='crate'?'#b47a45':prop.kind==='pillar'?'#9ca27b':prop.kind==='spikes'?'#d6c56d':prop.kind==='torch'?'#ee8c51':'#858260';
@@ -1511,7 +1547,7 @@
     ctx.save();ctx.translate(screenX,screenY);
     ctx.fillStyle=mapDef().ground||'#25351f';ctx.fillRect(-32,-32,W+64,H+64);
     ctx.save();ctx.translate(W/2-cameraX*CAMERA_ZOOM+shakeX,H/2-cameraY*CAMERA_ZOOM+shakeY);ctx.scale(CAMERA_ZOOM,CAMERA_ZOOM);
-    drawGrid();drawWater();drawCover();drawProps();drawObstacles();drawBridges();
+    drawGrid();drawWater();drawPortals();drawCover();drawProps();drawObstacles();drawBridges();
     const rawBeacon=map==='tidal'?[480,76]:map==='glass'?[84,424]:[878,386];
     const beacon=rawBeacon.map(value=>value*WORLD_SCALE);
     ctx.save();ctx.translate(beacon[0],beacon[1]);ctx.globalAlpha=.8;ctx.strokeStyle=mapDef().accent;ctx.lineWidth=2;
@@ -1558,7 +1594,7 @@
   async function loadMapPreviews(){
     try{
       const response=await fetch('/api/arena/maps',{cache:'no-store'});if(!response.ok)throw Error();
-      const definitions=await response.json();maps=Object.fromEntries(definitions.map(({id,...definition})=>[id,definition]));draw();
+      const definitions=await response.json();maps=Object.fromEntries(definitions.map(({id,...definition})=>[id,definition]));minimapStaticCanvas=null;minimapStaticKey='';draw();
     }catch{}
   }
   function selectMode(value){
