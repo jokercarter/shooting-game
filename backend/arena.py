@@ -367,6 +367,23 @@ MIN_WALKABLE_GAP = NAVIGATION_RADIUS * 2 + 4
 PROP_NAVIGATION_PADDING = NAVIGATION_RADIUS * 2 + 4
 BLOCKING_PROP_KINDS = frozenset({"tree", "stump", "barrel", "stone", "pillar", "crate"})
 
+# Generated obstacle sprites are complete cells centered inside the authored
+# map rectangles. The outer gutter is transparent/empty when a wide or tall
+# rectangle contains multiple square-ish sprites, so it must not stop the
+# player or projectiles before they reach the visible artwork.
+OBSTACLE_COLLISION_INSET = 8.0
+
+
+def _visual_obstacle_rect(obstacle):
+    """Return the solid footprint that matches the visible obstacle sprite."""
+    x, y, width, height = map(float, obstacle)
+    inset = min(OBSTACLE_COLLISION_INSET,
+                max(0.0, (width - 2.0) / 2.0),
+                max(0.0, (height - 2.0) / 2.0))
+    return (x + inset, y + inset,
+            max(1.0, width - inset * 2.0),
+            max(1.0, height - inset * 2.0))
+
 
 def _trim_obstacle_overlaps(rectangles):
     """Remove rectangle intersections without creating tiny sliver walls.
@@ -893,7 +910,8 @@ def collides(map_id: str, x: float, y: float, radius: float = 16, *, include_wat
         return True
     if any(x + radius > ox and x - radius < ox + width and
            y + radius > oy and y - radius < oy + height
-           for ox, oy, width, height in MAPS[map_id]["obstacles"]):
+           for ox, oy, width, height in
+           (_visual_obstacle_rect(obstacle) for obstacle in MAPS[map_id]["obstacles"])):
         return True
     return any(math.hypot(x - prop["x"], y - prop["y"]) < radius + prop["size"] * .34
                for prop in MAPS[map_id].get("props", ())
@@ -970,7 +988,8 @@ def _maybe_teleport_projectile(room: Room, projectile: dict, old_x: float, old_y
 
 def has_line_of_sight(map_id: str, x1: float, y1: float, x2: float, y2: float):
     dx, dy = x2 - x1, y2 - y1
-    for ox, oy, width, height in MAPS[map_id]["obstacles"]:
+    for obstacle in MAPS[map_id]["obstacles"]:
+        ox, oy, width, height = _visual_obstacle_rect(obstacle)
         low, high = 0.0, 1.0
         for origin, delta, minimum, maximum in (
                 (x1, dx, ox - 2, ox + width + 2),
