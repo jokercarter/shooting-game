@@ -864,14 +864,38 @@
   function drawPortals(){
     const now=performance.now()/1000;
     const palette=map==='ember'
-      ? {outer:'#d98cff',mid:'#9d5ad3',core:'#f2c6ff',spark:'#ffe6ff'}
+      ? {outer:'#d98cff',mid:'#9d5ad3',core:'#f2c6ff',spark:'#ffe6ff',floor:'#c17bea',floorDark:'#3d275a'}
       : map==='glass'
-        ? {outer:'#77e4f0',mid:'#3da8c5',core:'#c8fbff',spark:'#e8ffff'}
-        : {outer:'#9cf4c2',mid:'#36b58c',core:'#d4ffe2',spark:'#f4fff2'};
+        ? {outer:'#77e4f0',mid:'#3da8c5',core:'#c8fbff',spark:'#e8ffff',floor:'#69d6e3',floorDark:'#173f53'}
+        : {outer:'#9cf4c2',mid:'#36b58c',core:'#d4ffe2',spark:'#f4fff2',floor:'#7de2aa',floorDark:'#164936'};
+    const octagon=(radius)=>{
+      ctx.beginPath();
+      for(let side=0;side<8;side++){
+        const angle=Math.PI/8+side*Math.PI/4,px=Math.round(Math.cos(angle)*radius),py=Math.round(Math.sin(angle)*radius);
+        if(side===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+      }
+      ctx.closePath();
+    };
     for(const [index,portal] of (mapDef().portals||[]).entries()){
       const radius=portal.radius||56;if(!visibleRect(portal.x-radius,portal.y-radius,radius*2,radius*2,40))continue;
       const pulse=.88+Math.sin(now*4.2+index*.9)*.12,spin=now*.9+index*.7;
       ctx.save();ctx.translate(Math.round(portal.x),Math.round(portal.y));ctx.imageSmoothingEnabled=false;
+      // A broad octagonal landing pad makes the portal readable as a ground
+      // landmark even when no player is standing directly on it.
+      ctx.globalAlpha=.4;ctx.fillStyle='#07140f';octagon(radius*1.68);ctx.fill();
+      ctx.globalAlpha=.68;ctx.fillStyle=palette.floorDark;octagon(radius*1.5);ctx.fill();
+      ctx.globalAlpha=.9;ctx.strokeStyle=palette.floor;ctx.lineWidth=4;octagon(radius*1.5);ctx.stroke();
+      ctx.globalAlpha=.7;ctx.strokeStyle=palette.mid;ctx.lineWidth=2;octagon(radius*1.27);ctx.stroke();
+      ctx.save();ctx.globalAlpha=.9;ctx.fillStyle=palette.floor;
+      for(let mark=0;mark<8;mark++){
+        ctx.save();ctx.rotate(mark*Math.PI/4+spin*.18);ctx.beginPath();ctx.moveTo(radius*1.36,-4);ctx.lineTo(radius*1.12,-10);ctx.lineTo(radius*1.12,10);ctx.closePath();ctx.fill();ctx.restore();
+      }
+      ctx.restore();
+      ctx.globalAlpha=.82;ctx.strokeStyle=palette.floor;ctx.lineWidth=2;
+      for(const rotation of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
+        ctx.save();ctx.rotate(rotation);ctx.beginPath();ctx.moveTo(-radius*.92,-radius*.18);ctx.lineTo(-radius*.7,-radius*.18);ctx.lineTo(-radius*.7,-radius*.42);ctx.moveTo(radius*.92,radius*.18);ctx.lineTo(radius*.7,radius*.18);ctx.lineTo(radius*.7,radius*.42);ctx.stroke();ctx.restore();
+      }
+      ctx.globalAlpha=.9;ctx.fillStyle=palette.core;ctx.font='bold 13px "Courier New",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(index%2?'B':'A',0,radius*.98);
       ctx.globalAlpha=.28;ctx.fillStyle=palette.outer;ctx.beginPath();ctx.arc(0,2,radius*1.22*pulse,0,Math.PI*2);ctx.fill();
       ctx.globalAlpha=.8;ctx.fillStyle='#0b211dcc';ctx.beginPath();ctx.arc(0,0,radius*.94,0,Math.PI*2);ctx.fill();
       ctx.globalAlpha=.95;ctx.strokeStyle=palette.mid;ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,radius*.76,-spin,Math.PI*1.55-spin);ctx.stroke();
@@ -1497,10 +1521,12 @@
       const x=(i*37+11)%mw,y=(i*53+19)%mh;painter.fillStyle=i%2?'#849451':'#395f38';painter.fillRect(x,y,2,2);
     }
     for(const [x,y,w,h] of def.water||[]){painter.fillStyle='#1d6873';painter.fillRect(x*sx,y*sy,w*sx,h*sy)}
-    for(const portal of def.portals||[]){
-      painter.fillStyle=map==='ember'?'#c982e7':map==='glass'?'#70d9e7':'#7ce3a8';
-      painter.beginPath();painter.arc(portal.x*sx,portal.y*sy,Math.max(2,portal.radius*sx*.34),0,Math.PI*2);painter.fill();
+    for(const [index,portal] of (def.portals||[]).entries()){
+      const color=map==='ember'?'#c982e7':map==='glass'?'#70d9e7':'#7ce3a8',px=portal.x*sx,py=portal.y*sy,markRadius=Math.max(3,portal.radius*sx*.48);
+      painter.fillStyle='#102319';painter.beginPath();painter.arc(px,py,markRadius+2,0,Math.PI*2);painter.fill();
+      painter.fillStyle=color;painter.beginPath();painter.arc(px,py,markRadius,0,Math.PI*2);painter.fill();
       painter.strokeStyle='#ecffe9';painter.lineWidth=1;painter.stroke();
+      painter.fillStyle='#102319';painter.font='bold 6px monospace';painter.textAlign='center';painter.textBaseline='middle';painter.fillText(index%2?'B':'A',px,py);
     }
     for(const [x,y,w,h] of def.cover||[]){painter.fillStyle='#78934d';painter.fillRect(x*sx,y*sy,w*sx,h*sy)}
     for(const prop of def.props||[]){
@@ -1547,7 +1573,7 @@
     ctx.save();ctx.translate(screenX,screenY);
     ctx.fillStyle=mapDef().ground||'#25351f';ctx.fillRect(-32,-32,W+64,H+64);
     ctx.save();ctx.translate(W/2-cameraX*CAMERA_ZOOM+shakeX,H/2-cameraY*CAMERA_ZOOM+shakeY);ctx.scale(CAMERA_ZOOM,CAMERA_ZOOM);
-    drawGrid();drawWater();drawPortals();drawCover();drawProps();drawObstacles();drawBridges();
+    drawGrid();drawWater();drawCover();drawProps();drawObstacles();drawBridges();drawPortals();
     const rawBeacon=map==='tidal'?[480,76]:map==='glass'?[84,424]:[878,386];
     const beacon=rawBeacon.map(value=>value*WORLD_SCALE);
     ctx.save();ctx.translate(beacon[0],beacon[1]);ctx.globalAlpha=.8;ctx.strokeStyle=mapDef().accent;ctx.lineWidth=2;
