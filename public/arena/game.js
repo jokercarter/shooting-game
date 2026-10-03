@@ -11,6 +11,7 @@
   setupCanvasResolution();window.addEventListener('resize',setupCanvasResolution);
   const WORLD_W = 3000, WORLD_H = 2000, WORLD_SCALE = 3.125;
   const CAMERA_ZOOM = 1.08;
+  const CAMERA_MOUSE_LOOK_AHEAD = 128;
   const miniMap = document.querySelector('#mini-map'), miniCtx = miniMap.getContext('2d');
   const ui = {
     start: document.querySelector('#start-screen'), startButton: document.querySelector('#start'), watchRoom: document.querySelector('#watch-room'),
@@ -30,8 +31,8 @@
     skinName: document.querySelector('#skin-name'), lobbyChatList: document.querySelector('#lobby-chat-list'),
     lobbyChatForm: document.querySelector('#lobby-chat-form'), lobbyChatInput: document.querySelector('#lobby-chat-input'),
   };
-  const WEAPON_KEYS = ['pulse','lobber','flame','rotary','flare','prism','seeker','cursor','rail','scatter','rapid_flare','rapid_lobber','healing_wave','energy_sniper','bug'];
-  const KEY_WEAPONS = {'1':'pulse','2':'lobber','3':'flame','4':'rotary','5':'flare','6':'prism','7':'seeker','8':'cursor','9':'rail','0':'scatter','n':'rapid_flare','m':'rapid_lobber','h':'healing_wave','j':'energy_sniper','l':'bug'};
+  const WEAPON_KEYS = ['pulse','lobber','flame','rotary','flare','prism','seeker','cursor','scatter','rapid_flare','rapid_lobber','healing_wave','energy_sniper','bug'];
+  const KEY_WEAPONS = {'1':'pulse','2':'lobber','3':'flame','4':'rotary','5':'flare','6':'prism','7':'seeker','8':'cursor','0':'scatter','n':'rapid_flare','m':'rapid_lobber','h':'healing_wave','j':'energy_sniper','l':'bug'};
   const PILOT_SKINS = [
     {id:'wayfinder',name:'巡林斥候'},
     {id:'orchard',name:'阳谷采集者'},
@@ -67,12 +68,12 @@
   // offline asset request never prevents the match from rendering.
   const GENERATED_ASSET_SOURCES={
     pilots:{wayfinder:'/arena/generated/pilot-wayfinder-body.svg',orchard:'/arena/generated/pilot-orchard-body.svg',ember:'/arena/generated/pilot-ember-body.svg',gear:'/arena/generated/pilot-gear-body.svg'},
-    weapons:{pulse:'/arena/generated/weapon-pulse.svg',flame:'/arena/generated/weapon-flame.svg',rail:'/arena/generated/weapon-rail.svg',lobber:'/arena/generated/weapon-lobber.svg',prism:'/arena/generated/weapon-prism.svg',heal:'/arena/generated/weapon-heal.svg'},
+    weapons:{pulse:'/arena/generated/weapon-pulse.svg',flame:'/arena/generated/weapon-flame.svg',lobber:'/arena/generated/weapon-lobber.svg',prism:'/arena/generated/weapon-prism.svg',heal:'/arena/generated/weapon-heal.svg'},
     obstacles:{tree:'/arena/generated/obstacle-tree.svg',stump:'/arena/generated/obstacle-stump.svg',crates:'/arena/generated/obstacle-crates.svg',wall:'/arena/generated/obstacle-wall.svg',spikes:'/arena/generated/obstacle-spikes.svg'},
     grounds:{tidal:'/arena/generated/ground-tidal.svg',glass:'/arena/generated/ground-glass.svg',ember:'/arena/generated/ground-ember.svg'}
   };
   const generatedAssets={pilots:new Map(),weapons:new Map(),obstacles:new Map(),grounds:new Map()};
-  const WEAPON_SPRITE_KEYS={pulse:'pulse',flame:'flame',rail:'rail',lobber:'lobber',rapid_lobber:'lobber',prism:'prism',flare:'prism',rapid_flare:'prism',healing_wave:'heal'};
+  const WEAPON_SPRITE_KEYS={pulse:'pulse',flame:'flame',lobber:'lobber',rapid_lobber:'lobber',prism:'prism',flare:'prism',rapid_flare:'prism',healing_wave:'heal'};
   function loadGeneratedAssets(){
     for(const [group,entries] of Object.entries(GENERATED_ASSET_SOURCES))for(const [key,src] of Object.entries(entries)){
       const image=new Image();image.decoding='async';image.onload=()=>{if(group==='grounds')groundPatterns.delete(key)};image.src=src;generatedAssets[group].set(key,image);
@@ -218,8 +219,13 @@
       spectatorId=p?.id===own.id?null:p?.id||null;spectatorTarget=p?.id===own.id?null:p;
     }else{spectatorTarget=null;spectatorId=null}
     const point=p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?renderPoint(p):{x:WORLD_W/2,y:WORLD_H/2};
-    if(Math.hypot(point.x-cameraX,point.y-cameraY)>900){cameraX=point.x;cameraY=point.y}
-    else{cameraX+=(point.x-cameraX)*.18;cameraY+=(point.y-cameraY)*.18}
+    const mouseBiasX=Math.max(-1,Math.min(1,(mouse.x-W/2)/(W*.5)));
+    const mouseBiasY=Math.max(-1,Math.min(1,(mouse.y-H/2)/(H*.5)));
+    const viewHalfW=W/(2*CAMERA_ZOOM),viewHalfH=H/(2*CAMERA_ZOOM);
+    const targetX=Math.max(viewHalfW,Math.min(WORLD_W-viewHalfW,point.x+mouseBiasX*CAMERA_MOUSE_LOOK_AHEAD));
+    const targetY=Math.max(viewHalfH,Math.min(WORLD_H-viewHalfH,point.y+mouseBiasY*CAMERA_MOUSE_LOOK_AHEAD));
+    if(Math.hypot(point.x-cameraX,point.y-cameraY)>900){cameraX=targetX;cameraY=targetY}
+    else{cameraX+=(targetX-cameraX)*.18;cameraY+=(targetY-cameraY)*.18}
   }
   function screenToWorld(x,y){return{x:Math.max(0,Math.min(WORLD_W,cameraX+(x-W/2)/CAMERA_ZOOM)),y:Math.max(0,Math.min(WORLD_H,cameraY+(y-H/2)/CAMERA_ZOOM))}}
   function visibleRect(x,y,w=0,h=0,padding=64){
@@ -271,7 +277,7 @@
     const start=audioContext.currentTime,osc=audioContext.createOscillator(),gain=audioContext.createGain();
     const missile=MISSILE_KINDS.has(kind),explosion=type==='explosion';
     osc.type=explosion?'sawtooth':missile?'triangle':'square';
-    const base=explosion?75:missile?150:kind==='rail'?420:260;
+    const base=explosion?75:missile?150:260;
     osc.frequency.setValueAtTime(base*(.92+Math.random()*.16),start);
     osc.frequency.exponentialRampToValueAtTime(Math.max(35,base*(explosion?.32:.58)),start+(explosion?.22:.06));
     gain.gain.setValueAtTime(Math.max(.001,displaySettings.volume*(explosion?.22:.055)),start);
@@ -427,7 +433,7 @@
   }
   function recoilFor(kind){return MISSILE_KINDS.has(kind)?12:kind==='rail'?9:kind==='scatter'?6:4}
   function damageNumberStyle(weapon, value, own){
-    const color=own?'#ff9077':MISSILE_KINDS.has(weapon)?'#ffb45e':weapon==='flame'?'#ff8d58':weapon==='rail'||weapon==='energy_sniper'?'#b9d9ff':weapon==='scatter'?'#ffe58f':'#ffeec0';
+    const color=own?'#ff9077':MISSILE_KINDS.has(weapon)?'#ffb45e':weapon==='flame'?'#ff8d58':weapon==='energy_sniper'?'#b9d9ff':weapon==='scatter'?'#ffe58f':'#ffeec0';
     return {color,size:value>=55?13:11};
   }
   function updateScoreboard(){
@@ -864,14 +870,41 @@
   function drawPortals(){
     const now=performance.now()/1000;
     const palette=map==='ember'
-      ? {outer:'#d98cff',mid:'#9d5ad3',core:'#f2c6ff',spark:'#ffe6ff'}
+      ? {outer:'#d98cff',mid:'#9d5ad3',core:'#f2c6ff',spark:'#ffe6ff',floor:'#c17bea',floorDark:'#3d275a'}
       : map==='glass'
-        ? {outer:'#77e4f0',mid:'#3da8c5',core:'#c8fbff',spark:'#e8ffff'}
-        : {outer:'#9cf4c2',mid:'#36b58c',core:'#d4ffe2',spark:'#f4fff2'};
+        ? {outer:'#77e4f0',mid:'#3da8c5',core:'#c8fbff',spark:'#e8ffff',floor:'#69d6e3',floorDark:'#173f53'}
+        : {outer:'#9cf4c2',mid:'#36b58c',core:'#d4ffe2',spark:'#f4fff2',floor:'#7de2aa',floorDark:'#164936'};
+    const octagon=(radius)=>{
+      ctx.beginPath();
+      for(let side=0;side<8;side++){
+        const angle=Math.PI/8+side*Math.PI/4,px=Math.round(Math.cos(angle)*radius),py=Math.round(Math.sin(angle)*radius);
+        if(side===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+      }
+      ctx.closePath();
+    };
     for(const [index,portal] of (mapDef().portals||[]).entries()){
-      const radius=portal.radius||56;if(!visibleRect(portal.x-radius,portal.y-radius,radius*2,radius*2,40))continue;
+      // Keep the visual footprint close to a weapon spawn marker. The portal
+      // radius remains the gameplay hitbox; it should not force a giant decal.
+      const portalRadius=portal.radius||56,radius=Math.max(10,Math.min(12,portalRadius*.2));
+      if(!visibleRect(portal.x-radius,portal.y-radius,radius*2,radius*2,40))continue;
       const pulse=.88+Math.sin(now*4.2+index*.9)*.12,spin=now*.9+index*.7;
       ctx.save();ctx.translate(Math.round(portal.x),Math.round(portal.y));ctx.imageSmoothingEnabled=false;
+      // A broad octagonal landing pad makes the portal readable as a ground
+      // landmark even when no player is standing directly on it.
+      ctx.globalAlpha=.4;ctx.fillStyle='#07140f';octagon(radius*1.68);ctx.fill();
+      ctx.globalAlpha=.68;ctx.fillStyle=palette.floorDark;octagon(radius*1.5);ctx.fill();
+      ctx.globalAlpha=.9;ctx.strokeStyle=palette.floor;ctx.lineWidth=4;octagon(radius*1.5);ctx.stroke();
+      ctx.globalAlpha=.7;ctx.strokeStyle=palette.mid;ctx.lineWidth=2;octagon(radius*1.27);ctx.stroke();
+      ctx.save();ctx.globalAlpha=.9;ctx.fillStyle=palette.floor;
+      for(let mark=0;mark<8;mark++){
+        ctx.save();ctx.rotate(mark*Math.PI/4+spin*.18);ctx.beginPath();ctx.moveTo(radius*1.36,-4);ctx.lineTo(radius*1.12,-10);ctx.lineTo(radius*1.12,10);ctx.closePath();ctx.fill();ctx.restore();
+      }
+      ctx.restore();
+      ctx.globalAlpha=.82;ctx.strokeStyle=palette.floor;ctx.lineWidth=2;
+      for(const rotation of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
+        ctx.save();ctx.rotate(rotation);ctx.beginPath();ctx.moveTo(-radius*.92,-radius*.18);ctx.lineTo(-radius*.7,-radius*.18);ctx.lineTo(-radius*.7,-radius*.42);ctx.moveTo(radius*.92,radius*.18);ctx.lineTo(radius*.7,radius*.18);ctx.lineTo(radius*.7,radius*.42);ctx.stroke();ctx.restore();
+      }
+      ctx.globalAlpha=.9;ctx.fillStyle=palette.core;ctx.font='bold 13px "Courier New",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(index%2?'B':'A',0,radius*.98);
       ctx.globalAlpha=.28;ctx.fillStyle=palette.outer;ctx.beginPath();ctx.arc(0,2,radius*1.22*pulse,0,Math.PI*2);ctx.fill();
       ctx.globalAlpha=.8;ctx.fillStyle='#0b211dcc';ctx.beginPath();ctx.arc(0,0,radius*.94,0,Math.PI*2);ctx.fill();
       ctx.globalAlpha=.95;ctx.strokeStyle=palette.mid;ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,radius*.76,-spin,Math.PI*1.55-spin);ctx.stroke();
@@ -1205,7 +1238,7 @@
     // both pickup scale and the small HUD glyph scale.
     painter.globalAlpha=.18;painter.fillStyle=color;painter.fillRect(-13,-7,28,14);painter.globalAlpha=1;
     painter.fillStyle=ART_TOKENS.deepInk;painter.fillRect(-11,-2,22,6);painter.fillStyle=color;
-    if(key==='rail'){
+    if(false){
       painter.fillRect(-11,-3,16,4);painter.fillRect(-8,1,7,4);painter.fillRect(3,-2,12,2);painter.fillRect(-4,-5,5,2);
       painter.fillStyle='#fff0b3';painter.fillRect(9,-3,6,1);
     }else if(key==='rotary'){
@@ -1386,7 +1419,7 @@
       ctx.strokeRect(-reach,-reach*.7,reach*2,reach*1.4);
       ctx.fillStyle=sprite.colors.w;ctx.fillRect(-reach,-2,5,5);ctx.fillRect(reach-4,-2,5,5);
       ctx.fillRect(-reach,reach*.7-3,5,5);ctx.fillRect(reach-4,reach*.7-3,5,5);
-    }else if(p.kind==='rail'){
+    }else if(false){
       ctx.globalAlpha=.45;ctx.fillStyle=sprite.trail;ctx.fillRect(-48,-2,62,4);
       ctx.globalAlpha=.9;ctx.fillStyle='#e7f1ff';ctx.fillRect(-28,-1,43,2);
       ctx.fillStyle='#fff';ctx.fillRect(8,-2,5,4);
@@ -1497,10 +1530,12 @@
       const x=(i*37+11)%mw,y=(i*53+19)%mh;painter.fillStyle=i%2?'#849451':'#395f38';painter.fillRect(x,y,2,2);
     }
     for(const [x,y,w,h] of def.water||[]){painter.fillStyle='#1d6873';painter.fillRect(x*sx,y*sy,w*sx,h*sy)}
-    for(const portal of def.portals||[]){
-      painter.fillStyle=map==='ember'?'#c982e7':map==='glass'?'#70d9e7':'#7ce3a8';
-      painter.beginPath();painter.arc(portal.x*sx,portal.y*sy,Math.max(2,portal.radius*sx*.34),0,Math.PI*2);painter.fill();
+    for(const [index,portal] of (def.portals||[]).entries()){
+      const color=map==='ember'?'#c982e7':map==='glass'?'#70d9e7':'#7ce3a8',px=portal.x*sx,py=portal.y*sy,markRadius=Math.max(3,portal.radius*sx*.48);
+      painter.fillStyle='#102319';painter.beginPath();painter.arc(px,py,markRadius+2,0,Math.PI*2);painter.fill();
+      painter.fillStyle=color;painter.beginPath();painter.arc(px,py,markRadius,0,Math.PI*2);painter.fill();
       painter.strokeStyle='#ecffe9';painter.lineWidth=1;painter.stroke();
+      painter.fillStyle='#102319';painter.font='bold 6px monospace';painter.textAlign='center';painter.textBaseline='middle';painter.fillText(index%2?'B':'A',px,py);
     }
     for(const [x,y,w,h] of def.cover||[]){painter.fillStyle='#78934d';painter.fillRect(x*sx,y*sy,w*sx,h*sy)}
     for(const prop of def.props||[]){
@@ -1547,7 +1582,7 @@
     ctx.save();ctx.translate(screenX,screenY);
     ctx.fillStyle=mapDef().ground||'#25351f';ctx.fillRect(-32,-32,W+64,H+64);
     ctx.save();ctx.translate(W/2-cameraX*CAMERA_ZOOM+shakeX,H/2-cameraY*CAMERA_ZOOM+shakeY);ctx.scale(CAMERA_ZOOM,CAMERA_ZOOM);
-    drawGrid();drawWater();drawPortals();drawCover();drawProps();drawObstacles();drawBridges();
+    drawGrid();drawWater();drawCover();drawProps();drawObstacles();drawBridges();drawPortals();
     const rawBeacon=map==='tidal'?[480,76]:map==='glass'?[84,424]:[878,386];
     const beacon=rawBeacon.map(value=>value*WORLD_SCALE);
     ctx.save();ctx.translate(beacon[0],beacon[1]);ctx.globalAlpha=.8;ctx.strokeStyle=mapDef().accent;ctx.lineWidth=2;
