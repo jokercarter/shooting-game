@@ -877,7 +877,10 @@
       ctx.closePath();
     };
     for(const [index,portal] of (mapDef().portals||[]).entries()){
-      const radius=portal.radius||56;if(!visibleRect(portal.x-radius,portal.y-radius,radius*2,radius*2,40))continue;
+      // Keep the visual footprint close to a weapon spawn marker. The portal
+      // radius remains the gameplay hitbox; it should not force a giant decal.
+      const portalRadius=portal.radius||56,radius=Math.max(10,Math.min(12,portalRadius*.2));
+      if(!visibleRect(portal.x-radius,portal.y-radius,radius*2,radius*2,40))continue;
       const pulse=.88+Math.sin(now*4.2+index*.9)*.12,spin=now*.9+index*.7;
       ctx.save();ctx.translate(Math.round(portal.x),Math.round(portal.y));ctx.imageSmoothingEnabled=false;
       // A broad octagonal landing pad makes the portal readable as a ground
