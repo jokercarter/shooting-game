@@ -72,6 +72,11 @@
     obstacles:{tree:'/arena/generated/obstacle-tree.svg',stump:'/arena/generated/obstacle-stump.svg',crates:'/arena/generated/obstacle-crates.svg',wall:'/arena/generated/obstacle-wall.svg',spikes:'/arena/generated/obstacle-spikes.svg'},
     grounds:{tidal:'/arena/generated/ground-tidal.svg',glass:'/arena/generated/ground-glass.svg',ember:'/arena/generated/ground-ember.svg'}
   };
+  // The atlas was generated as 200 complete, isolated cells.  The 32 selected
+  // cells below are exported as tight standalone sprites; every map rectangle
+  // receives one whole sprite instead of a clipped slice of a large wall.
+  const ATLAS_OBSTACLE_KEYS=Array.from({length:32},(_,index)=>'atlas'+String(index+1).padStart(2,'0'));
+  for(const key of ATLAS_OBSTACLE_KEYS)GENERATED_ASSET_SOURCES.obstacles[key]='/arena/generated/obstacle-atlas-'+key.slice(5)+'.png';
   const generatedAssets={pilots:new Map(),weapons:new Map(),obstacles:new Map(),grounds:new Map()};
   const WEAPON_SPRITE_KEYS={pulse:'pulse',flame:'flame',lobber:'lobber',rapid_lobber:'lobber',prism:'prism',flare:'prism',rapid_flare:'prism',healing_wave:'heal'};
   function loadGeneratedAssets(){
@@ -80,10 +85,29 @@
     }
   }
   function generatedImage(group,key){const image=generatedAssets[group]?.get(key);return image&&image.complete&&image.naturalWidth>0?image:null}
-  function drawGeneratedObstacle(key,x,y,w,h,fit=1){
+  function obstacleSpriteKey(index){return ATLAS_OBSTACLE_KEYS[index%ATLAS_OBSTACLE_KEYS.length]}
+  function drawGeneratedObstacle(key,x,y,w,h){
     const image=generatedImage('obstacles',key);if(!image)return false;
-    const scale=Math.max(w/image.naturalWidth,h/image.naturalHeight)*fit,dw=image.naturalWidth*scale,dh=image.naturalHeight*scale;
-    ctx.save();ctx.imageSmoothingEnabled=false;ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(image,Math.round(x+(w-dw)/2),Math.round(y+(h-dh)/2),Math.round(dw),Math.round(dh));ctx.restore();return true;
+    // The server rectangle is the authoritative obstacle footprint.  Each
+    // selected atlas cell is a complete standalone sprite.  Long map chunks
+    // are filled with two or three complete sprites along their long axis so
+    // a square source cell is never stretched into a thin, clipped-looking
+    // wall or rock.
+    const rotate=h>w*1.35;
+    const span=rotate?h:w,thickness=rotate?w:h;
+    const tileCount=Math.max(1,Math.min(4,Math.round(span/Math.max(1,thickness))));
+    const tileSpan=span/tileCount;
+    const sourceWidth=image.naturalWidth||1,sourceHeight=image.naturalHeight||1;
+    const fit=Math.min(tileSpan/sourceWidth,thickness/sourceHeight);
+    const drawWidth=Math.max(1,Math.round(sourceWidth*fit));
+    const drawHeight=Math.max(1,Math.round(sourceHeight*fit));
+    ctx.save();ctx.imageSmoothingEnabled=false;ctx.translate(Math.round(x+w/2),Math.round(y+h/2));
+    if(rotate)ctx.rotate(Math.PI/2);
+    for(let tile=0;tile<tileCount;tile++){
+      const tileCenter=-span/2+(tile+.5)*tileSpan;
+      ctx.drawImage(image,Math.round(tileCenter-drawWidth/2),Math.round(-drawHeight/2),drawWidth,drawHeight);
+    }
+    ctx.restore();return true;
   }
   function drawSlayWall(x,y,w,h,variant=0,palette){
     // Slay-style masonry: a quiet grout bed plus offset, individually chipped
@@ -486,7 +510,9 @@
     for(const button of list.querySelectorAll('.weapon-slot')){
       const key=button.dataset.weapon,ammo=player.ammo?.[key];
       const reloadRemaining=Math.max(0,Number(ammo?.reload_remaining)||0),reloadDuration=Math.max(.01,Number(weapons[key]?.reload)||.01);
+      const switchRemaining=Math.max(0,Number(player.switch_remaining)||0);
       button.classList.toggle('active',key===player.weapon);
+      button.classList.toggle('switching',key===player.weapon&&switchRemaining>.02);
       button.classList.toggle('reloading',reloadRemaining>.02);
       button.style.setProperty('--reload-progress',Math.max(0,Math.min(1,1-reloadRemaining/reloadDuration)).toFixed(3));
       const ammoLabel=!ammo||ammo.mag<0?'∞':ammo.mag+' / '+ammo.reserve;
@@ -705,6 +731,7 @@
   }
   function chooseWeapon(weapon){
     if(!ownedWeapons().includes(weapon)){toast('先在地图上拾取这件武器');return}
+    if(localPlayer()?.weapon===weapon)return;
     send({type:'weapon',weapon});document.querySelectorAll('.weapon-slot').forEach(b=>b.classList.toggle('active',b.dataset.weapon===weapon));
   }
   function selectUpgrade(upgrade){
@@ -737,6 +764,8 @@
     ui.mapName.textContent=(maps[map]?.name||map||'MOSSWOOD').split(' ')[0].toUpperCase();
     const w=weapons[p.weapon]||weapons.pulse||{};
     updateWeaponRack(p);
+    const switchRemaining=Math.max(0,Number(p.switch_remaining)||0);
+    ui.weapon.classList.toggle('switching',switchRemaining>.02);
     ui.weapon.textContent=(w.name||p.weapon||'PULSE NEEDLE').toUpperCase();
     const ammo=p.ammo?.[p.weapon];ui.ammo.textContent=!ammo||ammo.mag<0||ammo.mag>1000?'∞':ammo.mag+' / '+ammo.reserve;
     const reloadRemaining=Math.max(0,Number(ammo?.reload_remaining)||0),reloadDuration=Math.max(.01,Number(w.reload)||.01),noReserve=Boolean(ammo&&ammo.mag===0&&ammo.reserve===0);
@@ -746,8 +775,10 @@
       ui.reloadFill.style.setProperty('--reload-progress',(reloading?Math.max(0,Math.min(100,(1-reloadRemaining/reloadDuration)*100)):0)+'%');
       ui.reloadLabel.textContent=reloading?'装填 '+reloadRemaining.toFixed(1)+'s':'无备弹';
     }
-    ui.info.textContent=w.kind==='heal_beam'?'HEAL BEAM / '+(w.damage||0)+' HP · SELF '+(w.self_heal||0):
+    const weaponInfo=w.kind==='heal_beam'?'HEAL BEAM / '+(w.damage||0)+' HP · SELF '+(w.self_heal||0):
       (w.kind||'pulse').toUpperCase()+' / '+(w.damage||0)+' DMG'+(w.alternate?(p.alternate_fire?' · ENERGY ORB':' · HOLD Y'):'');
+    ui.info.textContent=switchRemaining>.02?'切换中 '+switchRemaining.toFixed(1)+'s · '+weaponInfo:weaponInfo;
+
     const now=performance.now();ui.dash.style.width=Math.max(0,Math.min(100,100-(dashReadyAt-now)/18))+'%';
     const elapsed=Math.floor((replayMode?replayElapsed:now-startedAt)/1000);
     ui.timer.textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');
@@ -1020,9 +1051,9 @@
       const visualSize=prop.kind==='tree'?size*.68:prop.kind==='stump'?size*.9:size;
       const half=visualSize/2;ctx.save();ctx.translate(Math.round(prop.x),Math.round(prop.y));ctx.imageSmoothingEnabled=false;
       ctx.fillStyle='#10251d99';ctx.beginPath();ctx.ellipse(3,half*.48,half*.78,half*.25,0,0,Math.PI*2);ctx.fill();
-      const generatedPropKey={stump:'stump',spikes:'spikes'}[prop.kind],generatedProp=generatedPropKey&&generatedImage('obstacles',generatedPropKey);
+      const generatedPropKey={stump:'stump',spikes:'spikes',bush:'atlas13'}[prop.kind],generatedProp=generatedPropKey&&generatedImage('obstacles',generatedPropKey);
       if(generatedProp){
-        const dimensions={tree:[visualSize*1.08,visualSize*.96],stump:[visualSize*1.22,visualSize*.82],spikes:[visualSize*1.5,visualSize*.72]}[prop.kind]||[visualSize,visualSize];
+        const dimensions={tree:[visualSize*1.08,visualSize*.96],stump:[visualSize*1.22,visualSize*.82],spikes:[visualSize*1.5,visualSize*.72],bush:[visualSize*1.85,visualSize*1.25]}[prop.kind]||[visualSize,visualSize];
         const [spriteWidth,spriteHeight]=dimensions;ctx.drawImage(generatedProp,Math.round(-spriteWidth/2),Math.round(-spriteHeight*.74),Math.round(spriteWidth),Math.round(spriteHeight));
       }else if(prop.kind==='tree'){
         drawSlayTree(visualSize,Math.round(prop.x));
@@ -1130,15 +1161,15 @@
   function drawObstacles(){
     for(const [index,[x,y,w,h]] of (mapDef().obstacles||[]).entries()){
       if(!visibleRect(x,y,w,h))continue;
-      if(map==='tidal'){
-        if(index%7===0){if(!drawGeneratedObstacle('crates',x,y,w,h,.78))drawCrateStack(x,y,w,h,index)}
-        else drawSlayWall(x,y,w,h,index,{base:'#586266',dark:'#2f3637',mid:'#66706e',light:'#9aa28e',line:'#3e4748',mark:'#c3c390',outline:'#1d2528'});
-      }else if(map==='glass'){
-        if(index%4===1){if(!drawGeneratedObstacle('crates',x,y,w,h,.78))drawCrateStack(x,y,w,h,index)}
-        else drawSlayWall(x,y,w,h,index,{base:'#686e68',dark:'#303936',mid:'#7d8477',light:'#a9ad8f',line:'#4b534d',mark:'#d0c58a',outline:'#272e2b'});
-      }else{
-        if(index%5===3){if(!drawGeneratedObstacle('crates',x,y,w,h,.78))drawCrateStack(x,y,w,h,index)}
-        else drawSlayWall(x,y,w,h,index,{base:'#65565b',dark:'#302b34',mid:'#806b70',light:'#b39a8e',line:'#51424c',mark:'#d2a078',outline:'#282129'});
+      // Complete atlas sprites are distributed by cluster index so the map
+      // reads as hand-placed Slay.one cover instead of one repeated wall.
+      const spriteKey=obstacleSpriteKey(index);
+      if(!drawGeneratedObstacle(spriteKey,x,y,w,h)){
+        if(index%7===0)drawCrateStack(x,y,w,h,index);
+        else if(map==='ember')drawRuinObstacle(x,y,w,h,index);
+        else drawSlayWall(x,y,w,h,index,map==='glass'
+          ?{base:'#686e68',dark:'#303936',mid:'#7d8477',light:'#a9ad8f',line:'#4b534d',mark:'#d0c58a',outline:'#272e2b'}
+          :{base:'#586266',dark:'#2f3637',mid:'#66706e',light:'#9aa28e',line:'#3e4748',mark:'#c3c390',outline:'#1d2528'});
       }
     }
   }

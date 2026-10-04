@@ -45,6 +45,23 @@ def test_obstacle_layout_uses_many_short_chunks_instead_of_only_long_walls():
         assert any(width < 180 and height < 180 for _, _, width, height in map_def["obstacles"])
 
 
+def test_obstacle_layout_has_no_overlap_or_sub_character_gap():
+    """Every visible gap is wide enough for the server collision circle."""
+    for map_id, map_def in arena.MAPS.items():
+        obstacles = map_def["obstacles"]
+        for index, (x, y, width, height) in enumerate(obstacles):
+            for other in obstacles[index + 1:]:
+                other_x, other_y, other_width, other_height = other
+                overlap_width = min(x + width, other_x + other_width) - max(x, other_x)
+                overlap_height = min(y + height, other_y + other_height) - max(y, other_y)
+                assert not (overlap_width > 0 and overlap_height > 0), (map_id, index, other)
+                horizontal_gap = max(other_x - (x + width), x - (other_x + other_width), 0)
+                vertical_gap = max(other_y - (y + height), y - (other_y + other_height), 0)
+                clearance = math.hypot(horizontal_gap, vertical_gap)
+                assert clearance == 0 or clearance >= arena.MIN_WALKABLE_GAP, \
+                    (map_id, index, other, clearance)
+
+
 def test_river_blocks_foot_movement_but_bridge_is_walkable():
     water = arena.MAPS["tidal"]["water"][0]
     bridge = arena.MAPS["tidal"]["bridges"][0]
@@ -55,6 +72,84 @@ def test_river_blocks_foot_movement_but_bridge_is_walkable():
     assert arena.collides("tidal", *water_point)
     assert not arena.in_water("tidal", *bridge_point)
     assert not arena.collides("tidal", *bridge_point)
+
+
+@pytest.mark.parametrize("map_id", arena.MAPS)
+def test_player_input_cannot_walk_into_river_water(map_id):
+    """Movement stops at the water edge; only a full bridge footprint is safe."""
+    water = arena.MAPS[map_id]["water"][0]
+    wx, wy, width, height = water
+    if width >= height:
+        # Approach a horizontal river from above, away from bridge x-ranges.
+        x, y = wx + min(210, width * .25), wy - 60
+        move_x, move_y = 0, 1
+    else:
+        # Approach a vertical river from the left, away from bridge y-ranges.
+        x, y = wx - 60, wy + min(500, height * .72)
+        move_x, move_y = 1, 0
+    room = arena.Room(code="RIVER-WALK", map_id=map_id)
+    player = make_player("pilot", x=x, y=y)
+    player.move_x, player.move_y = move_x, move_y
+    player.last_input = time.monotonic()
+    room.players[player.id] = player
+    now = time.monotonic()
+    for tick in range(24):
+        arena._move_player(room, player, .1, now + tick * .1)
+    assert not arena.in_water(map_id, player.x, player.y, 15)
+    if width >= height:
+        assert player.y + 15 <= wy
+    else:
+        assert player.x + 15 <= wx
+
+
+def test_missile_blast_applies_knockback_to_visible_target():
+    now = time.monotonic()
+    room = arena.Room(code="MISSILE-KNOCKBACK", map_id="tidal")
+    source = make_player("source", x=700, y=500)
+    target = make_player("target", x=780, y=500)
+    room.players = {source.id: source, target.id: target}
+    projectile = {
+        "owner": source.id, "x": source.x, "y": source.y,
+        "damage": 20, "blast": 100, "knockback": 720, "self_damage": False,
+    }
+
+    arena._blast(room, projectile, now)
+    before = target.x
+    arena._move_player(room, target, .1, now)
+
+    assert target.knockback_until > now
+    assert target.knockback_x > 0
+    assert target.x > before
+
+
+def test_switch_delay_blocks_fire_and_empty_pickup_weapon_returns_on_next_pickup():
+    now = time.monotonic()
+    room = arena.Room(code="WEAPON-EMPTY", map_id="tidal")
+    player = make_player("pilot", x=200, y=200)
+    player.owned_weapons = {"pulse", "lobber"}
+    player.weapon = "lobber"
+    player.ammo["lobber"] = {"mag": 1, "reserve": 0, "reload_until": 0}
+    player.firing = True
+    player.aim_x, player.aim_y = 600, 200
+    room.players[player.id] = player
+
+    arena._spawn_projectile(room, player, now)
+    assert room.projectiles and room.projectiles[-1]["weapon"] == "lobber"
+    assert "lobber" not in player.owned_weapons
+    assert player.weapon == "pulse"
+    assert player.switch_until >= now + arena.WEAPON_SWITCH_DELAY
+    assert arena.player_view(player, room.map_id, player.id, now)["switch_remaining"] == pytest.approx(1.0)
+
+    player.firing = True
+    before = len(room.projectiles)
+    arena._spawn_projectile(room, player, now + .2)
+    assert len(room.projectiles) == before
+
+    room.pickups = [{"id": 1, "x": player.x, "y": player.y,
+                     "weapon": "lobber", "respawn_at": 0}]
+    arena._collect_pickups(room, now + 1.1)
+    assert "lobber" in player.owned_weapons
+    assert player.ammo["lobber"]["mag"] > 0
 
 
 def test_map_vote_starts_a_new_round_in_the_same_room():

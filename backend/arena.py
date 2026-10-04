@@ -36,7 +36,7 @@ PLAYER_DYNAMIC_VIEW_FIELDS = frozenset({
     "id", "x", "y", "angle", "hp", "weapon", "alternate_fire",
     "skill_points", "max_hp", "armor", "max_armor", "score", "kills", "deaths", "shielded",
     "jumping", "dead", "respawn_in", "invincible", "hidden", "lives",
-    "cover_exposed", "captures", "souls", "carried_flag",
+    "cover_exposed", "captures", "souls", "carried_flag", "switch_remaining",
 })
 ROOM_CAPACITIES = {
     "normal": 20,
@@ -103,7 +103,9 @@ MAPS = {
             # A short river-bank block preserves a clean ricochet angle and
             # keeps the long sightline from becoming completely open.
             [438, 278, 12, 22],
-            [430, 326, 24, 16], [506, 348, 24, 16], [462, 402, 24, 16],
+            # Keep the center fragments on the banks, never in the vertical
+            # river channel, so the crossings remain readable and open.
+            [400, 326, 24, 16], [540, 348, 24, 16], [350, 402, 24, 16],
         ],
         "props": [
             {"kind": "tree", "x": 74, "y": 108, "size": 42}, {"kind": "tree", "x": 120, "y": 180, "size": 38},
@@ -226,7 +228,8 @@ MAPS = {
             [792, 490, 46, 22], [846, 522, 22, 44], [804, 580, 46, 22],
             [382, 492, 28, 20], [566, 488, 28, 20], [426, 566, 26, 20],
             [506, 566, 26, 20],
-            [430, 360, 24, 16], [506, 382, 24, 16], [462, 432, 24, 16],
+            # The lower fragment stays above the horizontal river bank.
+            [430, 360, 24, 16], [506, 382, 24, 16], [462, 382, 24, 16],
         ],
         "props": [
             {"kind": "tree", "x": 68, "y": 220, "size": 42}, {"kind": "tree", "x": 890, "y": 412, "size": 40},
@@ -250,7 +253,7 @@ MAPS = {
         "pickup_points": [
             [80, 80, "lobber"], [480, 80, "flame"], [880, 80, "rotary"], [80, 320, "flare"],
             [880, 320, "prism"], [80, 560, "seeker"], [480, 560, "cursor"], [880, 560, "scatter"],
-            [680, 220, "rapid_flare"], [280, 420, "rapid_lobber"],
+            [680, 220, "rapid_flare"], [268, 420, "rapid_lobber"],
             [680, 420, "healing_wave"], [380, 240, "energy_sniper"], [580, 400, "bug"],
         ],
         "support_points": [
@@ -364,6 +367,23 @@ MIN_WALKABLE_GAP = NAVIGATION_RADIUS * 2 + 4
 PROP_NAVIGATION_PADDING = NAVIGATION_RADIUS * 2 + 4
 BLOCKING_PROP_KINDS = frozenset({"tree", "stump", "barrel", "stone", "pillar", "crate"})
 
+# Generated obstacle sprites are complete cells centered inside the authored
+# map rectangles. The outer gutter is transparent/empty when a wide or tall
+# rectangle contains multiple square-ish sprites, so it must not stop the
+# player or projectiles before they reach the visible artwork.
+OBSTACLE_COLLISION_INSET = 8.0
+
+
+def _visual_obstacle_rect(obstacle):
+    """Return the solid footprint that matches the visible obstacle sprite."""
+    x, y, width, height = map(float, obstacle)
+    inset = min(OBSTACLE_COLLISION_INSET,
+                max(0.0, (width - 2.0) / 2.0),
+                max(0.0, (height - 2.0) / 2.0))
+    return (x + inset, y + inset,
+            max(1.0, width - inset * 2.0),
+            max(1.0, height - inset * 2.0))
+
 
 def _trim_obstacle_overlaps(rectangles):
     """Remove rectangle intersections without creating tiny sliver walls.
@@ -416,11 +436,15 @@ def _trim_obstacle_overlaps(rectangles):
 
 
 def _close_tight_obstacle_gaps(rectangles):
-    """Join sub-character-width gaps so they read as one wall cluster.
+    """Join every sub-character-width gap into the surrounding wall cluster.
 
-    A positive gap is kept only when a player can actually pass through it.
-    Smaller gaps are closed by extending an adjacent chunk to the other edge;
-    the overlap trimmer runs after this step, so the result never intersects.
+    Slay-style cover is built from short blocks, but diagonal corners must not
+    leave a tempting-looking slot that is narrower than the player's collision
+    circle.  Treat the Euclidean corner distance as the clearance too.  When a
+    gap is too small, extend the earlier block along each separating axis until
+    the two blocks touch.  The overlap trimmer runs after each extension, so the
+    resulting collision rectangles remain disjoint while the visual cluster is
+    intentionally welded together.
     """
     closed = [list(rectangle) for rectangle in rectangles]
     for _ in range(max(2, len(closed))):
@@ -429,22 +453,22 @@ def _close_tight_obstacle_gaps(rectangles):
             x, y, width, height = closed[left_index]
             for right_index in range(left_index + 1, len(closed)):
                 other_x, other_y, other_width, other_height = closed[right_index]
-                vertical_overlap = min(y + height, other_y + other_height) - max(y, other_y)
-                horizontal_overlap = min(x + width, other_x + other_width) - max(x, other_x)
-                if vertical_overlap >= NAVIGATION_RADIUS * 2:
-                    if x + width < other_x and other_x - (x + width) < MIN_WALKABLE_GAP:
+                horizontal_gap = max(other_x - (x + width), x - (other_x + other_width), 0)
+                vertical_gap = max(other_y - (y + height), y - (other_y + other_height), 0)
+                clearance = math.hypot(horizontal_gap, vertical_gap)
+                if 0 < clearance < MIN_WALKABLE_GAP:
+                    # Extend the rectangle that appears first in the authored
+                    # order toward the later rectangle.  This preserves the
+                    # hand-placed rhythm while welding only the tiny gap.
+                    if other_x > x + width:
                         closed[left_index][2] = other_x - x
-                        changed = True
-                    elif other_x + other_width < x and x - (other_x + other_width) < MIN_WALKABLE_GAP:
+                    elif x > other_x + other_width:
                         closed[right_index][2] = x - other_x
-                        changed = True
-                if horizontal_overlap >= NAVIGATION_RADIUS * 2:
-                    if y + height < other_y and other_y - (y + height) < MIN_WALKABLE_GAP:
+                    if other_y > y + height:
                         closed[left_index][3] = other_y - y
-                        changed = True
-                    elif other_y + other_height < y and y - (other_y + other_height) < MIN_WALKABLE_GAP:
+                    elif y > other_y + other_height:
                         closed[right_index][3] = y - other_y
-                        changed = True
+                    changed = True
                 if changed:
                     break
             if changed:
@@ -469,8 +493,11 @@ def _geometry_in_water(map_def, x, y, radius):
             y + radius > wy and y - radius < wy + height
         if not inside_water:
             continue
-        if any(x + radius * .72 > bx and x - radius * .72 < bx + bw and
-               y + radius * .72 > by and y - radius * .72 < by + bh
+        # A bridge is walkable only while the player's collision footprint is
+        # fully supported by it.  Merely touching a bridge used to let a
+        # player slide into the river along its edge.
+        if any(x - radius >= bx and x + radius <= bx + bw and
+               y - radius >= by and y + radius <= by + bh
                for bx, by, bw, bh in map_def.get("bridges", ())):
             continue
         return True
@@ -868,7 +895,11 @@ def in_water(map_id: str, x: float, y: float, radius: float = 0):
     water_regions = MAPS[map_id].get("water", ())
     bridges = MAPS[map_id].get("bridges", ())
     return any(_inside_region(x, y, water, radius) and
-               not any(_inside_region(x, y, bridge, radius * .72) for bridge in bridges)
+               not any(x - radius >= bridge[0] and
+                       x + radius <= bridge[0] + bridge[2] and
+                       y - radius >= bridge[1] and
+                       y + radius <= bridge[1] + bridge[3]
+                       for bridge in bridges)
                for water in water_regions)
 
 
@@ -879,7 +910,8 @@ def collides(map_id: str, x: float, y: float, radius: float = 16, *, include_wat
         return True
     if any(x + radius > ox and x - radius < ox + width and
            y + radius > oy and y - radius < oy + height
-           for ox, oy, width, height in MAPS[map_id]["obstacles"]):
+           for ox, oy, width, height in
+           (_visual_obstacle_rect(obstacle) for obstacle in MAPS[map_id]["obstacles"])):
         return True
     return any(math.hypot(x - prop["x"], y - prop["y"]) < radius + prop["size"] * .34
                for prop in MAPS[map_id].get("props", ())
@@ -956,7 +988,8 @@ def _maybe_teleport_projectile(room: Room, projectile: dict, old_x: float, old_y
 
 def has_line_of_sight(map_id: str, x1: float, y1: float, x2: float, y2: float):
     dx, dy = x2 - x1, y2 - y1
-    for ox, oy, width, height in MAPS[map_id]["obstacles"]:
+    for obstacle in MAPS[map_id]["obstacles"]:
+        ox, oy, width, height = _visual_obstacle_rect(obstacle)
         low, high = 0.0, 1.0
         for origin, delta, minimum, maximum in (
                 (x1, dx, ox - 2, ox + width + 2),
@@ -1102,6 +1135,7 @@ def player_view(player: Player, map_id: str, viewer_id: str | None = None,
         "upgrades": player.upgrades if owner_view else None,
         "score": player.score, "kills": player.kills,
         "deaths": player.deaths, "shielded": player.shield_until > now,
+        "switch_remaining": round(max(0, player.switch_until - now), 2),
         "energy": round(player.energy, 1) if player.id == viewer_id else None,
         "jumping": player.jump_until > now,
         "dead": player.dead_until > now,
@@ -1507,7 +1541,27 @@ def _heal_player(room: Room, source: Player, target: Player, amount: float, now:
     return healed
 
 
+def _discard_empty_weapon(player: Player, weapon_key: str, now: float):
+    """Remove a finite-ammo pickup once its magazine and reserve are empty."""
+    if weapon_key == "pulse" or weapon_key not in player.owned_weapons:
+        return False
+    ammo = player.ammo.get(weapon_key)
+    if not ammo or ammo.get("mag", 0) > 0 or ammo.get("reserve", 0) > 0 or ammo.get("reload_until", 0) > now:
+        return False
+    player.owned_weapons.discard(weapon_key)
+    if player.weapon == weapon_key:
+        # Fall back to the infinite basic weapon.  The fallback itself still
+        # respects the normal switch delay so an empty pickup cannot become a
+        # free instant weapon swap.
+        player.weapon = "pulse"
+        player.alternate_fire = False
+        player.aim_started = 0
+        player.switch_until = max(player.switch_until, now + WEAPON_SWITCH_DELAY)
+    return True
+
+
 def _spawn_projectile(room: Room, player: Player, now: float):
+    fired_weapon_key = player.weapon
     base_weapon = WEAPONS.get(player.weapon, WEAPONS["pulse"])
     weapon = ({**base_weapon, **base_weapon["alternate"]}
               if player.alternate_fire and base_weapon.get("alternate") else base_weapon)
@@ -1523,6 +1577,8 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         if ammo["reserve"] >= 0:
             ammo["reserve"] -= loaded
         ammo["reload_until"] = 0
+        if _discard_empty_weapon(player, player.weapon, now):
+            return
     if not player.firing or now - player.last_shot < weapon["cooldown"]:
         return
     if ammo["mag"] == 0:
@@ -1546,6 +1602,8 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         ammo["mag"] -= 1
         if ammo["mag"] == 0 and ammo["reserve"] != 0:
             ammo["reload_until"] = now + weapon["reload"]
+        elif ammo["mag"] == 0:
+            _discard_empty_weapon(player, player.weapon, now)
     if weapon.get("self_heal"):
         _heal_player(room, player, player, weapon["self_heal"], now)
     aim_x, aim_y = player.aim_x, player.aim_y
@@ -1576,7 +1634,7 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         pellet_angle = angle + random.uniform(-weapon["spread"], weapon["spread"])
         room.next_id += 1
         projectile = {
-            "id": room.next_id, "owner": player.id, "weapon": player.weapon, "age": 0,
+            "id": room.next_id, "owner": player.id, "weapon": fired_weapon_key, "age": 0,
             "x": player.x + math.cos(pellet_angle) * 23, "y": player.y + math.sin(pellet_angle) * 23,
             "vx": math.cos(pellet_angle) * speed, "vy": math.sin(pellet_angle) * speed,
             "r": (max(1, weapon["size"]) if "size" in weapon else
