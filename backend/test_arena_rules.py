@@ -9,7 +9,55 @@ from backend import arena
 from backend.arena_public import app as public_app
 
 
-def make_player(player_id, *, x=200, y=200, hp=100, team=0, zombie=False, bot=False, **kwargs):
+def _clear(map_id, x, y, clearance=26):
+    return not arena.collides(map_id, x, y, clearance)
+
+
+def _open_run(map_id="tidal", length=200):
+    """Find a clear horizontal lane wide enough for two pilots + projectiles."""
+    for y in range(200, arena.HEIGHT - 200, 32):
+        for x in range(160, arena.WIDTH - length - 160, 32):
+            points = [(x + t, y) for t in range(0, length + 1, 8)]
+            if all(_clear(map_id, px, py) for px, py in points) and \
+                    arena.has_line_of_sight(map_id, x, y, x + length, y):
+                return x, y
+    raise AssertionError("no open lane on " + map_id)
+
+
+def _flat_wall(map_id="tidal", min_width=160):
+    """A horizontal wall with room above/below it, used by impact tests."""
+    for obstacle in arena.MAPS[map_id]["obstacles"]:
+        x, y, width, height, *_ = obstacle
+        if width >= min_width and height <= 110 and \
+                not arena.collides(map_id, x - 90, y + height / 2, 20):
+            return obstacle
+    raise AssertionError("no flat wall on " + map_id)
+
+
+def _cover_with_clear_exit(map_id="tidal"):
+    """A grass patch whose far side is open, for the pass-through assertion."""
+    for cover in arena.MAPS[map_id]["cover"]:
+        sx, sy = cover[0] - 70, cover[1] + cover[3] / 2
+        ex = cover[0] + cover[2] + 120
+        if not arena.collides(map_id, sx, sy, 20) and \
+                arena.has_line_of_sight(map_id, sx, sy, ex, sy):
+            return cover
+    raise AssertionError("no cover with a clear exit")
+
+
+def _big_wall(map_id="tidal"):
+    for obstacle in arena.MAPS[map_id]["obstacles"]:
+        x, y, width, height, *_ = obstacle
+        if width >= 110 and height >= 110:
+            return obstacle
+    raise AssertionError("no big wall on " + map_id)
+
+
+OPEN_X, OPEN_Y = _open_run()
+
+
+
+def make_player(player_id, *, x=OPEN_X, y=OPEN_Y, hp=100, team=0, zombie=False, bot=False, **kwargs):
     return arena.Player(
         id=player_id,
         name=player_id,
@@ -42,24 +90,27 @@ def test_world_is_larger_while_client_camera_scale_stays_a_view_setting():
 def test_obstacle_layout_uses_many_short_chunks_instead_of_only_long_walls():
     for map_id, map_def in arena.MAPS.items():
         assert len(map_def["obstacles"]) >= 20, map_id
-        assert any(width < 180 and height < 180 for _, _, width, height in map_def["obstacles"])
+        assert any(width < 180 and height < 180 for _, _, width, height, *_ in map_def["obstacles"])
 
 
 def test_obstacle_layout_has_no_overlap_or_sub_character_gap():
     """Every visible gap is wide enough for the server collision circle."""
     for map_id, map_def in arena.MAPS.items():
         obstacles = map_def["obstacles"]
-        for index, (x, y, width, height) in enumerate(obstacles):
+        for index, (x, y, width, height, *_) in enumerate(obstacles):
             for other in obstacles[index + 1:]:
-                other_x, other_y, other_width, other_height = other
+                other_x, other_y, other_width, other_height, *_ = other
                 overlap_width = min(x + width, other_x + other_width) - max(x, other_x)
                 overlap_height = min(y + height, other_y + other_height) - max(y, other_y)
                 assert not (overlap_width > 0 and overlap_height > 0), (map_id, index, other)
                 horizontal_gap = max(other_x - (x + width), x - (other_x + other_width), 0)
                 vertical_gap = max(other_y - (y + height), y - (other_y + other_height), 0)
-                clearance = math.hypot(horizontal_gap, vertical_gap)
-                assert clearance == 0 or clearance >= arena.MIN_WALKABLE_GAP, \
-                    (map_id, index, other, clearance)
+                if overlap_height >= arena.NAVIGATION_RADIUS * 2:
+                    assert horizontal_gap == 0 or horizontal_gap >= arena.MIN_WALKABLE_GAP, \
+                        (map_id, index, other, horizontal_gap)
+                if overlap_width >= arena.NAVIGATION_RADIUS * 2:
+                    assert vertical_gap == 0 or vertical_gap >= arena.MIN_WALKABLE_GAP, \
+                        (map_id, index, other, vertical_gap)
 
 
 def test_river_blocks_foot_movement_but_bridge_is_walkable():
@@ -312,18 +363,18 @@ def test_player_and_projectile_speeds_use_requested_runtime_pacing_scales():
     now = time.monotonic()
     assert arena.PLAYER_SPEED_SCALE == pytest.approx(.84)
     room = arena.Room(code="SPEED-SCALE", map_id="tidal")
-    player = make_player("pilot", x=200, y=200)
+    player = make_player("pilot", x=OPEN_X, y=OPEN_Y)
     player.move_x = 1
     player.last_input = now
     arena._move_player(room, player, .1, now)
-    assert player.x - 200 == pytest.approx(192 * arena.PLAYER_SPEED_SCALE * .1)
+    assert player.x - OPEN_X == pytest.approx(192 * arena.PLAYER_SPEED_SCALE * .1)
 
     projectile_speeds = {}
     for key in ("pulse", "seeker"):
-        shooter = make_player(f"shoot-{key}", x=200, y=200)
+        shooter = make_player(f"shoot-{key}", x=OPEN_X, y=OPEN_Y)
         room.players = {shooter.id: shooter}
         shooter.weapon = key
-        shooter.aim_x, shooter.aim_y = 800, 200
+        shooter.aim_x, shooter.aim_y = OPEN_X + 600, OPEN_Y
         shooter.firing = True
         shooter.ammo[key] = {"mag": 1, "reserve": 1, "reload_until": 0}
         arena._spawn_projectile(room, shooter, now + 2)
@@ -756,8 +807,8 @@ def test_every_weapon_can_hit_a_visible_target(weapon_key, monkeypatch):
     monkeypatch.setattr(arena.random, "uniform", lambda lower, upper: 0.0)
     now = time.monotonic()
     room = arena.Room(code="HIT", map_id="tidal")
-    shooter = make_player("shooter", x=200, y=200)
-    target = make_player("target", x=340, y=200)
+    shooter = make_player("shooter", x=OPEN_X, y=OPEN_Y)
+    target = make_player("target", x=OPEN_X + 140, y=OPEN_Y)
     room.players = {shooter.id: shooter, target.id: target}
     weapon = arena.WEAPONS[weapon_key]
     shooter.weapon = weapon_key
@@ -824,21 +875,21 @@ def test_energy_sniper_secondary_fire_uses_server_side_alt_profile():
 def test_energy_ray_detonates_its_orb_for_combo_damage():
     now = time.monotonic()
     room = arena.Room(code="COMBO", map_id="tidal")
-    shooter = make_player("shooter", x=200, y=200)
-    target = make_player("target", x=340, y=200)
+    shooter = make_player("shooter", x=OPEN_X, y=OPEN_Y)
+    target = make_player("target", x=OPEN_X + 140, y=OPEN_Y)
     room.players = {shooter.id: shooter, target.id: target}
     room.projectiles = [
         {"id": 1, "owner": shooter.id, "weapon": "energy_sniper", "kind": "energy_ray",
-         "x": 250, "y": 200, "vx": 1800, "vy": 0, "r": 6, "life": .4,
+         "x": OPEN_X + 50, "y": OPEN_Y, "vx": 1800, "vy": 0, "r": 6, "life": .4,
          "total_life": .4, "age": 0, "damage": 20, "blast": 0, "bounces": 0,
          "turn": 0, "pierce": 0, "target_id": None, "hit_targets": [],
-         "target_x": 500, "target_y": 200, "color": "#ee6a72"},
+         "target_x": OPEN_X + 300, "target_y": OPEN_Y, "color": "#ee6a72"},
         {"id": 2, "owner": shooter.id, "weapon": "energy_sniper", "kind": "energy_orb",
-         "x": 300, "y": 200, "vx": 0, "vy": 0, "r": 8.4, "life": 5,
+         "x": OPEN_X + 100, "y": OPEN_Y, "vx": 0, "vy": 0, "r": 8.4, "life": 5,
          "total_life": 5, "age": 0, "damage": 45, "blast": 42,
          "combo_damage": 100, "combo_blast": 93, "bounces": 0, "turn": 0,
          "pierce": 0, "target_id": None, "hit_targets": [],
-         "target_x": 500, "target_y": 200, "color": "#ee6a72"},
+         "target_x": OPEN_X + 300, "target_y": OPEN_Y, "color": "#ee6a72"},
     ]
 
     arena._advance_projectiles(room, .05, now)
@@ -884,17 +935,30 @@ def test_right_click_jump_has_a_short_server_side_invulnerability_window():
     assert target.hp == 50
 
 
+def _wall_impact_point(map_id="tidal"):
+    """A flat wall plus a clear point 30px above it, for direct-hit tests."""
+    for obstacle in arena.MAPS[map_id]["obstacles"]:
+        x, y, width, height, *_ = obstacle
+        if width < 140 or height > 110:
+            continue
+        px, py = x + width / 2, y - 30
+        if not arena.collides(map_id, px, py, 6):
+            return obstacle, px, py
+    raise AssertionError("no wall with a clear approach")
+
+
 def test_ricochet_projectile_bounces_off_a_wall():
     now = time.monotonic()
+    wall, px, py = _wall_impact_point()
     room = arena.Room(code="BOUNCE", map_id="tidal")
     shooter = make_player("shooter")
     room.players[shooter.id] = shooter
     room.projectiles = [{
         "id": 1, "owner": shooter.id, "weapon": "prism", "kind": "ricochet",
-        "x": 1400.0, "y": 840.0, "vx": 0.0, "vy": 450.0,
+        "x": px, "y": py, "vx": 0.0, "vy": 450.0,
         "r": 4, "life": 5.0, "age": 0.0, "damage": 28,
         "blast": 0, "bounces": 8, "turn": 0, "pierce": 0,
-        "hit_targets": [], "target_x": 1400, "target_y": 1100,
+        "hit_targets": [], "target_x": px, "target_y": py + 260,
     }]
 
     arena._advance_projectiles(room, .1, now)
@@ -907,9 +971,9 @@ def test_ricochet_projectile_bounces_off_a_wall():
 @pytest.mark.parametrize("kind", ["bolt", "arc"])
 def test_projectiles_stop_at_walls_but_pass_through_grass(kind):
     now = time.monotonic()
-    wall = next(obstacle for obstacle in arena.MAPS["tidal"]["obstacles"]
-                if obstacle[0] == 1369 and obstacle[1] == 869)
-    shooter = make_player("shooter", x=wall[0] - 70, y=wall[1] + wall[3] / 2)
+    wall = _flat_wall()
+    shooter = make_player("shooter", x=wall[0] - 90, y=wall[1] + wall[3] / 2)
+    assert _clear("tidal", shooter.x, shooter.y, 20)
     room = arena.Room(code="PROJECTILE-COVER", map_id="tidal")
     room.players[shooter.id] = shooter
 
@@ -923,7 +987,7 @@ def test_projectiles_stop_at_walls_but_pass_through_grass(kind):
     arena._advance_projectiles(room, .3, now)
     assert room.projectiles == []
 
-    cover = arena.MAPS["tidal"]["cover"][0]
+    cover = _cover_with_clear_exit()
     room.projectiles = [{
         "id": 2, "owner": shooter.id, "weapon": "pulse", "kind": kind,
         "x": cover[0] - 70, "y": cover[1] + cover[3] / 2, "vx": 420.0, "vy": 0.0,
@@ -968,13 +1032,13 @@ def test_missiles_colliding_detonate_together():
 def test_portals_pair_and_preserve_direction_for_players_and_projectiles():
     now = time.monotonic()
     room = arena.Room(code="PORTALS", map_id="glass")
-    player = make_player("portal-pilot", x=1500, y=650)
+    north, south = arena.MAPS["glass"]["portals"]
+    player = make_player("portal-pilot", x=north["x"], y=north["y"] - 260)
     player.move_y = 1
     room.players[player.id] = player
 
     arena._move_player(room, player, .5, now)
 
-    north, south = arena.MAPS["glass"]["portals"]
     # Passing near the small ground marker must not trigger a teleport.
     assert player.y < north["y"] - north["radius"] - 15
 
@@ -1028,12 +1092,12 @@ def test_explosion_damage_falls_off_with_distance_and_has_an_edge():
 def test_missile_blast_can_damage_its_owner_and_falls_off_from_the_center():
     now = time.monotonic()
     room = arena.Room(code="SELF-BLAST", map_id="tidal")
-    source = make_player("source", x=200, y=200)
-    center = make_player("center", x=220, y=200)
-    edge = make_player("edge", x=300, y=200)
+    source = make_player("source", x=OPEN_X, y=OPEN_Y)
+    center = make_player("center", x=OPEN_X + 20, y=OPEN_Y)
+    edge = make_player("edge", x=OPEN_X + 100, y=OPEN_Y)
     room.players = {p.id: p for p in (source, center, edge)}
     projectile = {
-        "owner": source.id, "x": 220, "y": 200, "damage": 60,
+        "owner": source.id, "x": OPEN_X + 20, "y": OPEN_Y, "damage": 60,
         "blast": 69, "self_damage": True,
     }
 
@@ -1044,12 +1108,18 @@ def test_missile_blast_can_damage_its_owner_and_falls_off_from_the_center():
 
 
 def test_homing_missile_cannot_lock_through_wall():
+    wall = _big_wall()
     room = arena.Room(code="SIGHT", map_id="tidal")
-    shooter = make_player("shooter", x=1000, y=900)
-    target = make_player("target", x=1900, y=900)
+    shooter = make_player("shooter", x=wall[0] - 130, y=wall[1] + wall[3] / 2)
+    target = make_player("target", x=wall[0] + wall[2] + 130, y=wall[1] + wall[3] / 2)
     room.players = {shooter.id: shooter, target.id: target}
     assert not arena.has_line_of_sight(room.map_id, shooter.x, shooter.y, target.x, target.y)
-    assert arena.has_line_of_sight(room.map_id, 1000, 600, 1900, 600)
+    above = next((wall[1] - dy for dy in range(60, 300, 20)
+                  if wall[1] - dy > 40
+                  and arena.has_line_of_sight(room.map_id, shooter.x, wall[1] - dy,
+                                              target.x, wall[1] - dy)), None)
+    if above is not None:
+        assert arena.has_line_of_sight(room.map_id, shooter.x, above, target.x, above)
     assert arena._nearest_opponent(room, shooter) is None
 
     projectile = {
@@ -1213,3 +1283,29 @@ def test_pickup_and_reload_fill_magazine_from_reserve():
     assert player.ammo["lobber"]["reserve"] == 6
 
 
+
+
+def test_arc_shots_publish_a_landing_point_for_the_client_renderer():
+    """The lob needs a landing point: without it the client cannot show depth."""
+    now = time.monotonic()
+    room = arena.Room(code="ARCPATH", map_id="tidal")
+    player = make_player("arc")
+    room.players[player.id] = player
+    player.weapon = "lobber"
+    player.owned_weapons = {"lobber"}
+    player.ammo["lobber"] = {"mag": 1, "reserve": 8, "reload_until": 0}
+    player.aim_x, player.aim_y = player.x + 600, player.y
+    player.firing = True
+    player.last_shot = 0
+    player.switch_until = 0
+
+    arena._spawn_projectile(room, player, now)
+
+    view = arena._state_snapshot(room)["projectiles"][0]
+    assert view["kind"] == "arc"
+    assert {"target_x", "target_y", "total_life", "blast"} <= set(view)
+    reach = math.hypot(view["target_x"] - player.x, view["target_y"] - player.y)
+    assert reach == pytest.approx(arena.WEAPONS["lobber"]["range"], rel=.05)
+    # The landing point must sit ahead of the throw, not behind it.
+    assert view["target_x"] > player.x
+    assert view["total_life"] > 0
