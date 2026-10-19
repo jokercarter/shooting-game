@@ -28,15 +28,19 @@ FAST_TICK_RATE = 1 / 90
 PROJECTILE_VIEW_FIELDS = frozenset({
     "id", "owner", "weapon", "age", "x", "y", "vx", "vy", "total_life",
     "kind", "blast", "color", "damage",
+    # Arc weapons need their computed landing point so the client can paint the
+    # throw arc and the impact zone; it is derived server-side, never client
+    # supplied.
+    "target_x", "target_y",
 })
 PROJECTILE_FLOAT_FIELDS = frozenset({
-    "age", "x", "y", "vx", "vy", "total_life", "blast",
+    "age", "x", "y", "vx", "vy", "total_life", "blast", "target_x", "target_y",
 })
 PLAYER_DYNAMIC_VIEW_FIELDS = frozenset({
     "id", "x", "y", "angle", "hp", "weapon", "alternate_fire",
     "skill_points", "max_hp", "armor", "max_armor", "score", "kills", "deaths", "shielded",
     "jumping", "dead", "respawn_in", "invincible", "hidden", "lives",
-    "cover_exposed", "captures", "souls", "carried_flag", "switch_remaining",
+    "cover_exposed", "captures", "souls", "carried_flag", "switch_remaining", "knocked",
 })
 ROOM_CAPACITIES = {
     "normal": 20,
@@ -82,30 +86,40 @@ MAPS = {
         # openings are intentional: players can rotate around each cluster
         # instead of facing a repeated left/right obstacle grid.
         "obstacles": [
-            # Offset corner rooms leave a diagonal route around each spawn lane.
-            [96, 88, 48, 22], [154, 112, 24, 48], [96, 176, 50, 22],
-            [236, 92, 46, 22], [294, 122, 22, 44], [332, 150, 46, 22],
-            [776, 92, 48, 22], [722, 122, 24, 46], [780, 180, 48, 22],
-            [642, 96, 44, 22], [684, 130, 22, 44], [620, 180, 46, 22],
-            # Mid-field cover is staggered so the river crossings are visible.
-            [88, 266, 52, 22], [148, 296, 22, 46], [96, 354, 46, 22],
-            [232, 250, 46, 22], [282, 282, 24, 44], [326, 334, 48, 22],
-            [820, 258, 48, 22], [786, 294, 24, 48], [816, 354, 46, 22],
-            [676, 250, 46, 22], [644, 282, 22, 44], [598, 334, 48, 22],
-            # Lower lanes mirror the rhythm without copying the top geometry.
-            [94, 472, 52, 22], [154, 500, 22, 48], [102, 566, 44, 22],
-            [240, 458, 46, 22], [280, 490, 24, 44], [326, 542, 48, 22],
-            [792, 470, 48, 22], [744, 502, 22, 46], [812, 560, 48, 22],
-            [632, 466, 46, 22], [674, 496, 24, 46], [612, 548, 46, 22],
-            # Small central islands create ricochet angles without sealing the map.
-            [382, 300, 28, 20], [548, 318, 28, 20], [398, 420, 26, 20],
-            [532, 430, 26, 20], [372, 206, 30, 20], [566, 214, 30, 20],
-            # A short river-bank block preserves a clean ricochet angle and
-            # keeps the long sightline from becoming completely open.
-            [438, 278, 12, 22],
-            # Keep the center fragments on the banks, never in the vertical
-            # river channel, so the crossings remain readable and open.
-            [400, 326, 24, 16], [540, 348, 24, 16], [350, 402, 24, 16],
+            [66, 58, 44, 44, "block"],
+            [128, 150, 88, 26, "slab"],
+            [262, 56, 26, 64, "column"],
+            [330, 96, 36, 36, "crate"],
+            [190, 100, 54, 28, "rubble"],
+            [60, 178, 24, 24, "pillar"],
+            [110, 230, 44, 44, "block"],
+            [58, 352, 88, 26, "slab"],
+            [230, 250, 24, 24, "pillar"],
+            [270, 300, 26, 64, "column"],
+            [90, 470, 44, 44, "block"],
+            [170, 540, 88, 26, "slab"],
+            [300, 470, 36, 36, "crate"],
+            [250, 590, 24, 24, "pillar"],
+            [150, 585, 54, 28, "rubble"],
+            [856, 64, 44, 44, "block"],
+            [700, 150, 88, 26, "slab"],
+            [560, 60, 26, 64, "column"],
+            [880, 210, 36, 36, "crate"],
+            [735, 108, 54, 28, "rubble"],
+            [820, 250, 44, 44, "block"],
+            [700, 320, 88, 26, "slab"],
+            [600, 300, 24, 24, "pillar"],
+            [880, 330, 26, 64, "column"],
+            [840, 470, 44, 44, "block"],
+            [730, 540, 88, 26, "slab"],
+            [620, 570, 36, 36, "crate"],
+            [890, 560, 24, 24, "pillar"],
+            [420, 120, 24, 24, "pillar"],
+            [540, 150, 54, 28, "rubble"],
+            [420, 330, 24, 24, "pillar"],
+            [540, 360, 54, 28, "rubble"],
+            [410, 470, 36, 36, "crate"],
+            [540, 500, 54, 28, "rubble"],
         ],
         "props": [
             {"kind": "tree", "x": 74, "y": 108, "size": 42}, {"kind": "tree", "x": 120, "y": 180, "size": 38},
@@ -117,13 +131,13 @@ MAPS = {
             {"kind": "barrel", "x": 342, "y": 230, "size": 20}, {"kind": "barrel", "x": 614, "y": 414, "size": 20},
             {"kind": "stone", "x": 463, "y": 160, "size": 24}, {"kind": "stone", "x": 493, "y": 467, "size": 24},
             {"kind": "reed", "x": 420, "y": 176, "size": 28}, {"kind": "reed", "x": 548, "y": 244, "size": 24},
-            {"kind": "reed", "x": 420, "y": 468, "size": 26}, {"kind": "reed", "x": 548, "y": 548, "size": 24},
+            {"kind": "reed", "x": 380, "y": 468, "size": 26}, {"kind": "reed", "x": 548, "y": 548, "size": 24},
             {"kind": "bush", "x": 178, "y": 246, "size": 30}, {"kind": "bush", "x": 786, "y": 430, "size": 32},
             {"kind": "pillar", "x": 204, "y": 130, "size": 28}, {"kind": "pillar", "x": 756, "y": 132, "size": 28},
-            {"kind": "torch", "x": 398, "y": 184, "size": 22}, {"kind": "torch", "x": 562, "y": 184, "size": 22},
-            {"kind": "banner", "x": 332, "y": 92, "size": 26}, {"kind": "banner", "x": 628, "y": 92, "size": 26},
+            {"kind": "torch", "x": 398, "y": 184, "size": 22}, {"kind": "torch", "x": 562, "y": 202, "size": 22},
+            {"kind": "banner", "x": 296, "y": 84, "size": 26}, {"kind": "banner", "x": 628, "y": 92, "size": 26},
             {"kind": "spikes", "x": 376, "y": 232, "size": 30}, {"kind": "spikes", "x": 584, "y": 232, "size": 30},
-            {"kind": "bush", "x": 286, "y": 352, "size": 28}, {"kind": "bush", "x": 650, "y": 382, "size": 28},
+            {"kind": "bush", "x": 322, "y": 352, "size": 28}, {"kind": "bush", "x": 650, "y": 382, "size": 28},
             {"kind": "reed", "x": 402, "y": 340, "size": 24}, {"kind": "reed", "x": 558, "y": 352, "size": 24},
             {"kind": "torch", "x": 268, "y": 392, "size": 20}, {"kind": "torch", "x": 694, "y": 286, "size": 20},
         ],
@@ -148,25 +162,39 @@ MAPS = {
                   [416, 300, 58, 36], [500, 300, 58, 36], [392, 548, 56, 32],
                   [520, 548, 56, 32]],
         "obstacles": [
-            # Upper orchard pockets: short walls and offset corners leave room
-            # to rotate around the weapon spawns instead of forcing a grid path.
-            [98, 88, 48, 22], [156, 112, 24, 48], [102, 176, 48, 22],
-            [242, 96, 46, 22], [298, 126, 22, 44], [336, 178, 46, 22],
-            [676, 94, 46, 22], [724, 124, 24, 46], [776, 174, 48, 22],
-            [814, 94, 46, 22], [858, 126, 22, 44], [808, 178, 42, 22],
-            # Above the river, staggered cover creates two wide approach lanes.
-            [94, 244, 50, 22], [150, 276, 22, 46], [104, 336, 48, 22],
-            [238, 220, 46, 22], [288, 250, 24, 44], [330, 304, 46, 22],
-            [760, 220, 48, 22], [808, 252, 24, 44], [770, 306, 48, 22],
-            [624, 244, 46, 22], [676, 274, 22, 44], [590, 322, 46, 22],
-            [382, 196, 28, 20], [548, 206, 28, 20], [418, 330, 26, 20],
-            [556, 332, 26, 20],
-            # Lower bank cover lines up with bridge approaches but leaves the
-            # three crossings open for fast rotations.
-            [96, 532, 50, 22], [150, 562, 22, 46], [104, 606, 46, 22],
-            [238, 522, 46, 22], [288, 552, 24, 44], [334, 596, 46, 22],
-            [794, 528, 48, 22], [746, 558, 22, 46], [808, 602, 46, 22],
-            [632, 522, 46, 22], [676, 552, 24, 44], [598, 596, 46, 22],
+            [56, 120, 44, 44, "block"],
+            [150, 60, 88, 26, "slab"],
+            [250, 140, 36, 36, "crate"],
+            [320, 60, 24, 24, "pillar"],
+            [360, 130, 26, 64, "column"],
+            [180, 220, 54, 28, "rubble"],
+            [270, 330, 44, 44, "block"],
+            [120, 300, 24, 24, "pillar"],
+            [850, 120, 44, 44, "block"],
+            [720, 60, 88, 26, "slab"],
+            [640, 140, 26, 64, "column"],
+            [600, 250, 36, 36, "crate"],
+            [800, 220, 54, 28, "rubble"],
+            [700, 340, 44, 44, "block"],
+            [880, 300, 24, 24, "pillar"],
+            [420, 120, 24, 24, "pillar"],
+            [520, 100, 54, 28, "rubble"],
+            [400, 300, 44, 44, "block"],
+            [560, 180, 54, 28, "rubble"],
+            [400, 190, 24, 24, "pillar"],
+            [560, 320, 26, 64, "column"],
+            [90, 560, 44, 44, "block"],
+            [170, 584, 88, 26, "slab"],
+            [300, 560, 36, 36, "crate"],
+            [240, 520, 24, 24, "pillar"],
+            [120, 520, 54, 28, "rubble"],
+            [830, 560, 44, 44, "block"],
+            [720, 584, 88, 26, "slab"],
+            [620, 550, 26, 64, "column"],
+            [880, 520, 36, 36, "crate"],
+            [660, 520, 24, 24, "pillar"],
+            [420, 560, 24, 24, "pillar"],
+            [540, 580, 54, 28, "rubble"],
         ],
         "props": [
             {"kind": "tree", "x": 85, "y": 120, "size": 42}, {"kind": "tree", "x": 117, "y": 452, "size": 42},
@@ -181,7 +209,7 @@ MAPS = {
             {"kind": "pillar", "x": 204, "y": 302, "size": 28}, {"kind": "pillar", "x": 758, "y": 304, "size": 28},
             {"kind": "torch", "x": 336, "y": 364, "size": 22}, {"kind": "torch", "x": 624, "y": 364, "size": 22},
             {"kind": "banner", "x": 350, "y": 98, "size": 26}, {"kind": "banner", "x": 620, "y": 98, "size": 26},
-            {"kind": "spikes", "x": 300, "y": 382, "size": 30}, {"kind": "spikes", "x": 660, "y": 382, "size": 30},
+            {"kind": "spikes", "x": 332, "y": 390, "size": 30}, {"kind": "spikes", "x": 660, "y": 382, "size": 30},
             {"kind": "bush", "x": 190, "y": 286, "size": 28}, {"kind": "bush", "x": 770, "y": 288, "size": 28},
             {"kind": "reed", "x": 390, "y": 286, "size": 24}, {"kind": "reed", "x": 566, "y": 304, "size": 24},
             {"kind": "torch", "x": 430, "y": 356, "size": 20}, {"kind": "torch", "x": 530, "y": 356, "size": 20},
@@ -207,29 +235,39 @@ MAPS = {
                   [384, 236, 50, 32], [526, 236, 50, 32], [384, 386, 50, 32],
                   [526, 386, 50, 32]],
         "obstacles": [
-            # Ruined corner rooms are compact and asymmetrical, like the
-            # cover clusters in Slay.one's arenas.
-            [86, 88, 48, 22], [144, 116, 24, 48], [92, 178, 48, 22],
-            [214, 102, 46, 22], [270, 134, 22, 44], [310, 184, 46, 22],
-            [604, 88, 48, 22], [660, 118, 24, 46], [710, 174, 48, 22],
-            [780, 100, 46, 22], [836, 132, 22, 44], [792, 188, 46, 22],
-            # Upper middle lanes are deliberately offset from the river bridges.
-            [92, 246, 50, 22], [148, 276, 22, 46], [98, 338, 48, 22],
-            [218, 224, 46, 22], [274, 254, 24, 44], [318, 308, 46, 22],
-            [610, 228, 48, 22], [668, 258, 22, 44], [712, 312, 48, 22],
-            [798, 242, 46, 22], [850, 272, 22, 44], [808, 326, 46, 22],
-            [350, 198, 30, 20], [580, 196, 30, 20], [402, 334, 26, 20],
-            [532, 336, 26, 20],
-            # Lower ruins create flanking positions without closing the three
-            # bridge lanes across the horizontal river.
-            [88, 496, 52, 22], [148, 526, 22, 46], [96, 584, 48, 22],
-            [218, 504, 46, 22], [274, 534, 24, 44], [320, 588, 46, 22],
-            [608, 494, 48, 22], [666, 524, 22, 46], [712, 582, 48, 22],
-            [792, 490, 46, 22], [846, 522, 22, 44], [804, 580, 46, 22],
-            [382, 492, 28, 20], [566, 488, 28, 20], [426, 566, 26, 20],
-            [506, 566, 26, 20],
-            # The lower fragment stays above the horizontal river bank.
-            [430, 360, 24, 16], [506, 382, 24, 16], [462, 382, 24, 16],
+            [60, 120, 44, 44, "block"],
+            [150, 60, 88, 26, "slab"],
+            [250, 130, 26, 64, "column"],
+            [330, 60, 36, 36, "crate"],
+            [250, 215, 54, 28, "rubble"],
+            [120, 300, 24, 24, "pillar"],
+            [270, 320, 44, 44, "block"],
+            [60, 350, 88, 26, "slab"],
+            [850, 110, 44, 44, "block"],
+            [720, 60, 88, 26, "slab"],
+            [650, 130, 26, 64, "column"],
+            [600, 240, 36, 36, "crate"],
+            [810, 210, 54, 28, "rubble"],
+            [700, 320, 44, 44, "block"],
+            [830, 300, 24, 24, "pillar"],
+            [420, 120, 24, 24, "pillar"],
+            [540, 110, 54, 28, "rubble"],
+            [400, 300, 44, 44, "block"],
+            [390, 190, 24, 24, "pillar"],
+            [560, 190, 54, 28, "rubble"],
+            [600, 330, 26, 64, "column"],
+            [100, 555, 44, 44, "block"],
+            [180, 584, 88, 26, "slab"],
+            [300, 560, 36, 36, "crate"],
+            [240, 520, 24, 24, "pillar"],
+            [110, 515, 54, 28, "rubble"],
+            [810, 550, 44, 44, "block"],
+            [700, 584, 88, 26, "slab"],
+            [620, 550, 26, 64, "column"],
+            [900, 500, 36, 36, "crate"],
+            [660, 520, 24, 24, "pillar"],
+            [420, 560, 24, 24, "pillar"],
+            [540, 575, 54, 28, "rubble"],
         ],
         "props": [
             {"kind": "tree", "x": 68, "y": 220, "size": 42}, {"kind": "tree", "x": 890, "y": 412, "size": 40},
@@ -238,16 +276,16 @@ MAPS = {
             {"kind": "stone", "x": 473, "y": 153, "size": 26}, {"kind": "stone", "x": 495, "y": 493, "size": 26},
             {"kind": "barrel", "x": 280, "y": 450, "size": 18}, {"kind": "barrel", "x": 680, "y": 185, "size": 18},
             {"kind": "reed", "x": 192, "y": 394, "size": 26}, {"kind": "reed", "x": 352, "y": 486, "size": 24},
-            {"kind": "reed", "x": 624, "y": 394, "size": 26}, {"kind": "reed", "x": 798, "y": 486, "size": 24},
+            {"kind": "reed", "x": 540, "y": 385, "size": 24}, {"kind": "reed", "x": 798, "y": 486, "size": 24},
             {"kind": "bush", "x": 180, "y": 190, "size": 28}, {"kind": "bush", "x": 790, "y": 560, "size": 30},
             {"kind": "pillar", "x": 188, "y": 142, "size": 28}, {"kind": "pillar", "x": 760, "y": 142, "size": 28},
             {"kind": "crate", "x": 218, "y": 184, "size": 26}, {"kind": "crate", "x": 742, "y": 184, "size": 26},
-            {"kind": "torch", "x": 344, "y": 188, "size": 22}, {"kind": "torch", "x": 616, "y": 188, "size": 22},
-            {"kind": "banner", "x": 336, "y": 98, "size": 26}, {"kind": "banner", "x": 626, "y": 98, "size": 26},
+            {"kind": "torch", "x": 344, "y": 188, "size": 22}, {"kind": "torch", "x": 640, "y": 180, "size": 22},
+            {"kind": "banner", "x": 380, "y": 110, "size": 26}, {"kind": "banner", "x": 626, "y": 98, "size": 26},
             {"kind": "spikes", "x": 378, "y": 372, "size": 30}, {"kind": "spikes", "x": 580, "y": 372, "size": 30},
             {"kind": "bush", "x": 188, "y": 352, "size": 28}, {"kind": "bush", "x": 770, "y": 328, "size": 28},
             {"kind": "reed", "x": 420, "y": 286, "size": 24}, {"kind": "reed", "x": 540, "y": 306, "size": 24},
-            {"kind": "torch", "x": 312, "y": 348, "size": 20}, {"kind": "torch", "x": 648, "y": 348, "size": 20},
+            {"kind": "torch", "x": 340, "y": 340, "size": 20}, {"kind": "torch", "x": 648, "y": 348, "size": 20},
             {"kind": "banner", "x": 410, "y": 178, "size": 24}, {"kind": "banner", "x": 550, "y": 178, "size": 24},
         ],
         "pickup_points": [
@@ -291,6 +329,167 @@ MAPS["ember"].update({
         {"id": "ember-south-gate", "pair": "ember-north-gate", "x": 480, "y": 550, "radius": 6},
     ],
 })
+
+# --- Tile-based arena geometry ------------------------------------------------
+# Slay.one-style arenas are authored on a coarse square grid: every wall run,
+# cover patch, water lane and bridge is an exact multiple of TILE_CELL, so the
+# collision rectangle and the drawn tiles are the same footprint. The plans
+# below are the single source of truth for all three maps; the legacy polygon
+# literals above are overwritten by _apply_tile_plans().
+TILE_CELL = 32                 # design px -> 100 world px after MAP_SCALE
+TILE_COLS, TILE_ROWS = 30, 20  # 960 x 640 design space
+
+TILE_PLANS = {
+    "tidal": {
+        # vertical river with three two-tile bridges
+        "water":   [(14, 1, 2, 18)],
+        "bridges": [(14, 2, 2, 2), (14, 8, 2, 2), (14, 15, 2, 2)],
+        "walls":   [(4, 4, 2, 2), (8, 7, 3, 1), (3, 9, 1, 3), (5, 14, 2, 2), (9, 16, 3, 1), (22, 4, 2, 2), (18, 7, 3, 1), (25, 9, 1, 3), (21, 14, 2, 2), (17, 16, 3, 1), (7, 1, 2, 2), (10, 1, 3, 1), (19, 1, 3, 1), (24, 2, 2, 1), (1, 9, 1, 2), (11, 10, 3, 1), (16, 11, 2, 1), (10, 17, 3, 1), (7, 1, 2, 2), (10, 1, 3, 1), (19, 1, 3, 1), (24, 2, 2, 1), (1, 9, 1, 2), (11, 10, 3, 1), (16, 11, 2, 1), (10, 17, 3, 1)],
+        "cover":   [(2, 6, 3, 2), (6, 3, 2, 2), (10, 4, 1, 2),
+                    (23, 6, 3, 2), (20, 3, 2, 2), (26, 12, 2, 2),
+                    (2, 12, 2, 2), (4, 17, 3, 1), (22, 17, 3, 1)],
+        "trees":   [(2, 2), (26, 2), (4, 13), (25, 17), (12, 2), (27, 2), (12, 2), (27, 2)],
+        "crates":  [(20, 12), (9, 12), (6, 6), (21, 5), (12, 14), (6, 6), (21, 5), (12, 14)],
+        "barrels": [(5, 11), (24, 11), (8, 2), (4, 10), (26, 9), (8, 2), (4, 10), (26, 9)],
+        "pillars": [(12, 6), (17, 12), (9, 5), (17, 3), (7, 12), (9, 5), (17, 3), (7, 12)],
+        "rubble":  [(7, 14), (22, 8), (6, 8), (19, 14), (6, 8), (19, 14)],
+    },
+    "glass": {
+        # horizontal river with three four-tile bridges
+        "water":   [(1, 13, 28, 2)],
+        "bridges": [(5, 13, 3, 2), (13, 13, 3, 2), (21, 13, 3, 2)],
+        "walls":   [(3, 3, 2, 2), (9, 5, 3, 1), (12, 2, 1, 3), (18, 3, 2, 2), (23, 5, 3, 1), (26, 8, 1, 3), (3, 9, 2, 2), (9, 10, 3, 1), (18, 9, 2, 2), (23, 10, 3, 1), (4, 17, 2, 1), (12, 17, 3, 1), (18, 17, 2, 1), (7, 1, 3, 1), (16, 1, 3, 1), (24, 1, 2, 1), (21, 2, 2, 1), (23, 3, 2, 1), (7, 8, 2, 1), (12, 8, 2, 1), (2, 12, 2, 1), (27, 12, 2, 1), (8, 15, 3, 1), (19, 15, 3, 1), (24, 16, 2, 1), (3, 18, 2, 1), (17, 18, 2, 1), (7, 1, 3, 1), (16, 1, 3, 1), (24, 1, 2, 1), (21, 2, 2, 1), (23, 3, 2, 1), (7, 8, 2, 1), (12, 8, 2, 1), (2, 12, 2, 1), (27, 12, 2, 1), (8, 15, 3, 1), (19, 15, 3, 1), (24, 16, 2, 1), (3, 18, 2, 1), (17, 18, 2, 1)],
+        "cover":   [(5, 6, 3, 2), (13, 6, 2, 2), (20, 6, 3, 2),
+                    (7, 16, 2, 2), (15, 16, 2, 2), (22, 16, 2, 2),
+                    (2, 11, 2, 1), (26, 2, 1, 2)],
+        "trees":   [(2, 7), (27, 7), (10, 17), (19, 17), (28, 2), (2, 15), (27, 18), (28, 2), (2, 15), (27, 18)],
+        "crates":  [(11, 9), (17, 9), (14, 2), (26, 6), (5, 12), (20, 8), (14, 2), (26, 6), (5, 12), (20, 8)],
+        "barrels": [(7, 11), (20, 11), (10, 4), (24, 4), (13, 11), (6, 16), (10, 4), (24, 4), (13, 11), (6, 16)],
+        "pillars": [(14, 10), (15, 4), (5, 3), (24, 5), (15, 7), (11, 16), (5, 3), (24, 5), (15, 7), (11, 16)],
+        "rubble":  [(6, 9), (23, 9), (10, 1), (25, 8), (12, 17), (10, 1), (25, 8), (12, 17)],
+    },
+    "ember": {
+        "water":   [(1, 13, 28, 2)],
+        "bridges": [(6, 13, 3, 2), (13, 13, 3, 2), (20, 13, 3, 2)],
+        "walls":   [(4, 3, 2, 2), (10, 5, 2, 1), (14, 2, 1, 3), (19, 3, 2, 2), (24, 5, 2, 1), (3, 8, 1, 3), (9, 9, 3, 1), (17, 8, 2, 2), (26, 9, 1, 3), (5, 16, 2, 1), (11, 17, 3, 1), (19, 16, 2, 1), (24, 17, 2, 1), (7, 1, 2, 1), (20, 1, 3, 1), (25, 2, 2, 1), (10, 3, 2, 1), (22, 4, 2, 1), (7, 7, 2, 1), (20, 8, 2, 1), (6, 10, 2, 1), (14, 11, 2, 1), (8, 15, 3, 1), (26, 15, 2, 1), (3, 17, 2, 1), (19, 18, 3, 1), (7, 1, 2, 1), (20, 1, 3, 1), (25, 2, 2, 1), (10, 3, 2, 1), (22, 4, 2, 1), (7, 7, 2, 1), (20, 8, 2, 1), (6, 10, 2, 1), (14, 11, 2, 1), (8, 15, 3, 1), (26, 15, 2, 1), (3, 17, 2, 1), (19, 18, 3, 1)],
+        "cover":   [(2, 6, 2, 2), (7, 5, 2, 1), (12, 6, 2, 2), (20, 5, 3, 1),
+                    (25, 7, 2, 2), (3, 11, 2, 1), (9, 16, 2, 2),
+                    (16, 16, 2, 1), (22, 16, 2, 2)],
+        "trees":   [(2, 10), (27, 4), (8, 3), (21, 10), (28, 3), (1, 6), (28, 15), (12, 18), (28, 3), (1, 6), (28, 15), (12, 18)],
+        "crates":  [(12, 9), (23, 8), (16, 2), (27, 5), (4, 12), (10, 8), (23, 11), (16, 2), (27, 5), (4, 12), (10, 8), (23, 11)],
+        "barrels": [(6, 8), (18, 11), (11, 1), (3, 5), (24, 7), (8, 12), (12, 16), (11, 1), (3, 5), (24, 7), (8, 12), (12, 16)],
+        "pillars": [(15, 5), (10, 12), (17, 4), (9, 6), (20, 12), (7, 16), (28, 9), (17, 4), (9, 6), (20, 12), (7, 16), (28, 9)],
+        "rubble":  [(13, 9), (25, 12), (24, 3), (14, 7), (2, 9), (22, 17), (24, 3), (14, 7), (2, 9), (22, 17)],
+    },
+}
+
+TILE_KIND_CHARS = (("trees", "T", "tree"), ("crates", "C", "crate"),
+                   ("barrels", "B", "barrel"), ("pillars", "P", "pillar"),
+                   ("rubble", "R", "rubble"))
+
+
+def _tile_grid(plan):
+    grid = [["." for _ in range(TILE_COLS)] for _ in range(TILE_ROWS)]
+
+    def paint(rects, char):
+        for x, y, width, height in rects:
+            for row in range(y, y + height):
+                for col in range(x, x + width):
+                    grid[row][col] = char
+
+    paint(plan.get("water", ()), "~")
+    paint(plan.get("bridges", ()), "=")
+    paint(plan.get("cover", ()), ",")
+    paint(plan.get("walls", ()), "#")
+    for key, _, _ in TILE_KIND_CHARS:
+        for x, y in plan.get(key, ()):
+            grid[y][x] = {k: c for k, c, _ in TILE_KIND_CHARS}[key]
+    # Solid one-tile border ring: the arena is visually enclosed by the grid,
+    # not by an invisible wall floating inside open ground.
+    for col in range(TILE_COLS):
+        grid[0][col] = grid[TILE_ROWS - 1][col] = "#"
+    for row in range(TILE_ROWS):
+        grid[row][0] = grid[row][TILE_COLS - 1] = "#"
+    return grid
+
+
+def _merge_tiles(grid, char):
+    """Greedy-mesh one tile character into whole-rectangle runs."""
+    used = [[False] * TILE_COLS for _ in range(TILE_ROWS)]
+    rects = []
+    for row in range(TILE_ROWS):
+        for col in range(TILE_COLS):
+            if grid[row][col] != char or used[row][col]:
+                continue
+            width = 0
+            while (col + width < TILE_COLS and grid[row][col + width] == char
+                   and not used[row][col + width]):
+                width += 1
+            height = 1
+            while row + height < TILE_ROWS and all(
+                    grid[row + height][col + i] == char
+                    and not used[row + height][col + i] for i in range(width)):
+                height += 1
+            for yy in range(row, row + height):
+                for xx in range(col, col + width):
+                    used[yy][xx] = True
+            rects.append([col * TILE_CELL, row * TILE_CELL,
+                          width * TILE_CELL, height * TILE_CELL])
+    return rects
+
+
+def _snap_point(x, y, walkable, used):
+    """Snap a design-space point onto the nearest free walkable tile centre."""
+    best, best_distance = None, float("inf")
+    for tile_x, tile_y in walkable:
+        if (tile_x, tile_y) in used:
+            continue
+        centre_x = tile_x * TILE_CELL + TILE_CELL / 2
+        centre_y = tile_y * TILE_CELL + TILE_CELL / 2
+        distance = (centre_x - x) ** 2 + (centre_y - y) ** 2
+        if distance < best_distance:
+            best, best_distance = (tile_x, tile_y), distance
+    used.add(best)
+    return best[0] * TILE_CELL + TILE_CELL // 2, best[1] * TILE_CELL + TILE_CELL // 2
+
+
+def _apply_tile_plans():
+    for map_id, plan in TILE_PLANS.items():
+        grid = _tile_grid(plan)
+        map_def = MAPS[map_id]
+        obstacles = []
+        for x, y, width, height in _merge_tiles(grid, "#"):
+            obstacles.append([x, y, width, height, "block"])
+        for key, char, kind in TILE_KIND_CHARS:
+            for row in range(TILE_ROWS):
+                for col in range(TILE_COLS):
+                    if grid[row][col] == char:
+                        obstacles.append([col * TILE_CELL, row * TILE_CELL,
+                                          TILE_CELL, TILE_CELL, kind])
+        map_def["obstacles"] = obstacles
+        map_def["cover"] = _merge_tiles(grid, ",")
+        map_def["water"] = _merge_tiles(grid, "~")
+        map_def["bridges"] = _merge_tiles(grid, "=")
+        map_def["props"] = []
+
+        walkable = [(col, row) for row in range(1, TILE_ROWS - 1)
+                    for col in range(1, TILE_COLS - 1) if grid[row][col] in ".,="]
+        used_tiles = set()
+        map_def["pickup_points"] = [
+            [*_snap_point(x, y, walkable, used_tiles), weapon]
+            for x, y, weapon in map_def.get("pickup_points", ())
+        ]
+        map_def["support_points"] = [
+            [*_snap_point(x, y, walkable, used_tiles), resource]
+            for x, y, resource in map_def.get("support_points", ())
+        ]
+        portal_tiles = set()
+        for portal in map_def.get("portals", ()):
+            portal["x"], portal["y"] = _snap_point(
+                portal["x"], portal["y"], walkable, portal_tiles)
+
+
+_apply_tile_plans()
 
 
 def _fragment_cover_geometry(rectangles):
@@ -361,6 +560,9 @@ def _fragment_obstacle_geometry(rectangles):
     return [fragment for fragment in fragments if fragment[2] >= 12 and fragment[3] >= 12]
 
 
+KNOCKBACK_FORCE = 1900.0    # world px/s at the blast centre
+KNOCKBACK_DURATION = 0.9    # how long the slide keeps moving the pilot
+KNOCKBACK_DECAY = 6.0       # exponential decay of the slide speed
 NAVIGATION_RADIUS = 16.0
 MIN_OBSTACLE_SPAN = 18
 MIN_WALKABLE_GAP = NAVIGATION_RADIUS * 2 + 4
@@ -376,7 +578,7 @@ OBSTACLE_COLLISION_INSET = 8.0
 
 def _visual_obstacle_rect(obstacle):
     """Return the solid footprint that matches the visible obstacle sprite."""
-    x, y, width, height = map(float, obstacle)
+    x, y, width, height = map(float, obstacle[:4])
     inset = min(OBSTACLE_COLLISION_INSET,
                 max(0.0, (width - 2.0) / 2.0),
                 max(0.0, (height - 2.0) / 2.0))
@@ -480,7 +682,7 @@ def _close_tight_obstacle_gaps(rectangles):
 
 
 def _circle_to_rectangle_distance(x, y, radius, rectangle):
-    rx, ry, width, height = rectangle
+    rx, ry, width, height = rectangle[:4]
     nearest_x = max(rx, min(x, rx + width))
     nearest_y = max(ry, min(y, ry + height))
     return math.hypot(x - nearest_x, y - nearest_y) - radius
@@ -554,8 +756,8 @@ def _assert_map_geometry():
     """Fail fast if a future map edit breaks collision or passage invariants."""
     for map_id, map_def in MAPS.items():
         obstacles = map_def.get("obstacles", ())
-        for index, (x, y, width, height) in enumerate(obstacles):
-            for other_x, other_y, other_width, other_height in obstacles[index + 1:]:
+        for index, (x, y, width, height, *_) in enumerate(obstacles):
+            for other_x, other_y, other_width, other_height, *_ in obstacles[index + 1:]:
                 overlap_width = min(x + width, other_x + other_width) - max(x, other_x)
                 overlap_height = min(y + height, other_y + other_height) - max(y, other_y)
                 if overlap_width > 0 and overlap_height > 0:
@@ -609,12 +811,16 @@ def _assert_map_geometry():
 def _scale_map_geometry():
     """Scale the original layout into the larger world once at import time."""
     for map_def in MAPS.values():
-        map_def["obstacles"] = _fragment_obstacle_geometry(map_def["obstacles"])
+        # Obstacles are authored as final cover chunks with an explicit visual
+        # kind in the 5th field. They are intentionally not auto-fragmented any
+        # more: the layouts below are tuned piece by piece, and fragmenting
+        # them would desync the kind and produce sliver collisions.
         map_def["obstacles"] = [
-            [round(value * MAP_SCALE) for value in obstacle]
+            [round(obstacle[0] * MAP_SCALE), round(obstacle[1] * MAP_SCALE),
+             round(obstacle[2] * MAP_SCALE), round(obstacle[3] * MAP_SCALE),
+             *obstacle[4:]]
             for obstacle in map_def["obstacles"]
         ]
-        map_def["cover"] = _fragment_cover_geometry(map_def["cover"])
         map_def["cover"] = [
             [round(value * MAP_SCALE) for value in cover]
             for cover in map_def["cover"]
@@ -639,8 +845,7 @@ def _scale_map_geometry():
             portal["x"] = round(portal["x"] * MAP_SCALE)
             portal["y"] = round(portal["y"] * MAP_SCALE)
             portal["radius"] = round(portal["radius"] * MAP_SCALE)
-        map_def["obstacles"] = _close_tight_obstacle_gaps(map_def["obstacles"])
-        map_def["obstacles"] = _trim_obstacle_overlaps(map_def["obstacles"])
+        # Layout spacing is validated by _assert_map_geometry below.
         _nudge_blocking_props(map_def)
 
 
@@ -1138,6 +1343,7 @@ def player_view(player: Player, map_id: str, viewer_id: str | None = None,
         "switch_remaining": round(max(0, player.switch_until - now), 2),
         "energy": round(player.energy, 1) if player.id == viewer_id else None,
         "jumping": player.jump_until > now,
+        "knocked": player.knockback_until > now,
         "dead": player.dead_until > now,
         "respawn_in": max(0, round(player.dead_until - now, 1)),
         "invincible": player.invincible_until > now,
@@ -1443,7 +1649,7 @@ def _apply_knockback(room: Room, target: Player, center_x: float, center_y: floa
         dx, dy, distance = math.cos(angle), math.sin(angle), 1
     target.knockback_x += dx / distance * force
     target.knockback_y += dy / distance * force
-    target.knockback_until = max(target.knockback_until, now + .65)
+    target.knockback_until = max(target.knockback_until, now + KNOCKBACK_DURATION)
     if source and source.id != target.id:
         target.knockback_source = source.id
 
@@ -1476,13 +1682,23 @@ def _move_player(room: Room, player: Player, dt: float, now: float):
     if not player.is_bot and now - player.last_input > 1.3:
         player.move_x = player.move_y = 0
         player.firing = False
+    if player.dead_until > now:
+        player.knockback_x = player.knockback_y = 0
+        player.knockback_until = 0
+        player.knockback_source = None
+        return
     if player.knockback_until > now:
         knock_dx, knock_dy = player.knockback_x * dt, player.knockback_y * dt
-        if not collides(room.map_id, player.x + knock_dx, player.y, include_water=False):
-            player.x += knock_dx
-        if not collides(room.map_id, player.x, player.y + knock_dy, include_water=False):
-            player.y += knock_dy
-        decay = math.exp(-dt * 8)
+        # A heavy blast can move a pilot further in one tick than a wall is
+        # thick, so walk the slide in small steps instead of teleporting it.
+        steps = max(1, min(12, math.ceil(math.hypot(knock_dx, knock_dy) / 28)))
+        for step in range(steps):
+            piece_x, piece_y = knock_dx / steps, knock_dy / steps
+            if not collides(room.map_id, player.x + piece_x, player.y, include_water=False):
+                player.x += piece_x
+            if not collides(room.map_id, player.x, player.y + piece_y, include_water=False):
+                player.y += piece_y
+        decay = math.exp(-dt * KNOCKBACK_DECAY)
         player.knockback_x *= decay
         player.knockback_y *= decay
         _maybe_teleport_player(room, player, now)
@@ -1648,7 +1864,7 @@ def _spawn_projectile(room: Room, player: Player, now: float):
             "pierce": weapon.get("pierce", 0),
             "combo_damage": weapon.get("combo_damage", 0),
             "combo_blast": weapon.get("combo_blast", 0),
-            "knockback": 720 if weapon["kind"] in MISSILE_KINDS and weapon.get("blast", 0) else 0,
+            "knockback": KNOCKBACK_FORCE if weapon["kind"] in MISSILE_KINDS and weapon.get("blast", 0) else 0,
             "max_range": weapon.get("range", 0), "distance_travelled": 0,
             "target_id": None, "hit_targets": [],
             "self_damage": weapon["kind"] in MISSILE_KINDS and bool(weapon.get("blast", 0)),
@@ -1879,6 +2095,10 @@ def _blast(room: Room, projectile: dict, now: float):
         return
     for target in room.players.values():
         self_hit = target.id == source.id
+        if target.dead_until > now:
+            # A downed pilot is not a physics object: without this the corpse
+            # keeps catching knockback from every later blast.
+            continue
         if (self_hit and not projectile.get("self_damage")) or (not self_hit and not _can_damage(room, source, target)):
             continue
         distance = math.hypot(target.x - projectile["x"], target.y - projectile["y"])

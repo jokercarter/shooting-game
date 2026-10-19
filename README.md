@@ -16,7 +16,7 @@ Morrow Fields 是一款原创像素风俯视角在线竞技场游戏。玩家在
 - 六种模式：自由混战、感染乱斗、队伍积分、夺旗、五命决斗、感染生存。
 - 15 种功能不同的武器，包括近距离武器、爆炸武器、追踪武器、能量光束和治疗武器。
 - 地图中的武器、血包和护甲会在固定补给点生成，并在拾取后重新出现。
-- 岩石、箱子、树木和尖刺会阻挡角色与弹道；草丛可以隐藏角色，但不会阻挡武器。
+- 地图按 30×20 的方格网搭建（每格 32 设计像素 / 100 世界像素）：墙体、木箱、油桶、树、碎石与草丛都严格对齐网格；墙体/木箱/油桶/树/碎石阻挡角色与弹道，草丛可以隐藏角色但不阻挡武器。三张图各有 48–66 个障碍物，掩体密度约 16%–20%。
 - 每张地图都有一对成对传送门；角色、子弹和导弹穿过后会保留移动方向抵达另一端。
 - 草丛中的玩家在同一片草丛内可以互相看见；开火或受到伤害后会暴露 3 秒。
 - 导弹拥有像素爆炸、碎片、烟尘、屏幕闪光和镜头抖动效果。
@@ -82,7 +82,7 @@ Morrow Fields is an original pixel-art, top-down online arena game. Move through
 - Six modes: Free-for-All, Infection Deathmatch, Team Deathmatch, Capture the Flag, Five-Life Duel, and Infection Survival.
 - Fifteen weapons with different roles, including close-range weapons, explosives, seeker weapons, energy beams, and healing weapons.
 - Weapons, health packs, and armor spawn at fixed supply points and return after pickup.
-- Rocks, crates, trees, and spikes block players and projectiles; grass can hide players without blocking weapons.
+- Concrete blocks, low walls, columns, crate stacks, barrel clusters, and rubble block players and projectiles; grass hides players without blocking weapons.
 - Each map has a paired portal route. Players, bullets, and missiles keep their travel direction when they teleport.
 - Players inside the same grass patch can see one another. Firing or taking damage reveals a hidden player for three seconds.
 - Missiles use layered pixel explosions, debris, smoke, screen flashes, and camera shake.

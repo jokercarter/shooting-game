@@ -150,9 +150,12 @@ test('ten-player crowd keeps the private HUD patch responsive',async({page,reque
  await expect.poll(async()=>(await readLocalPlayer())?.state_interval_ms,{timeout:3000}).toBe(11);
  await expect.poll(async()=>(await readLocalPlayer())?.input_interval_ms,{timeout:3000}).toBe(11);
  await expect.poll(async()=>(await readLocalPlayer())?.render_target_fps,{timeout:3000}).toBe(100);
- const canvasBox=await page.locator('#arena').boundingBox();
- expect(canvasBox).not.toBeNull();
- await page.locator('#arena').focus();
+  const canvasBox=await page.locator('#arena').boundingBox();
+  expect(canvasBox).not.toBeNull();
+  // A ten-pilot room can down the test pilot before the movement probe; input
+  // is ignored while respawning, so make sure it is alive first.
+  await expect.poll(async()=>parseInt((await page.locator('#health-number').textContent())||'0',10),{timeout:8000}).toBeGreaterThan(0);
+  await page.locator('#arena').focus();
  let maxMove=0;
  for(const key of ['d','s','a','w']){
   const before=await page.evaluate(()=> (window as typeof window & {__morrowTestLocalPlayer?:()=>{x:number;y:number}|null}).__morrowTestLocalPlayer?.()||{x:0,y:0});
@@ -194,4 +197,43 @@ test('display settings persist and live performance status is visible',async({pa
  expect(state).toEqual({low:true,hiddenMap:true,scale:'1.35'});
  expect(await page.locator('#match-result').count()).toBe(1);
  await page.getByRole('button',{name:'返回大厅'}).click();
+});
+
+test('minimap only plots pilots inside the camera view, and concealment hides them',async({page})=>{
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await page.goto('/arena/?test-reconnect');
+  await page.getByLabel('玩家名称').fill('MiniVerify');
+  await page.getByRole('button',{name:'进入战场'}).click();
+  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
+  await page.waitForTimeout(1400);
+
+  const result=await page.evaluate(()=>{
+    const w=window as any;
+    const pilot=w.__morrowTestLocalPlayer();
+    let mismatch=0,samples=0,offShown=0,insideShown=0;
+    for(let dx=-2400;dx<=2400;dx+=200){
+      for(let dy=-1600;dy<=1600;dy+=200){
+        const x=pilot.x+dx,y=pilot.y+dy;
+        const shown=w.__morrowTestMinimapShown({id:'enemy',x,y});
+        const inside=w.__morrowTestProject(x,y).inside;
+        samples++;
+        if(shown!==inside)mismatch++;        // gating must match the view box exactly
+        if(shown&&!inside)offShown++;        // never plot an off-screen pilot
+        if(shown&&inside)insideShown++;
+      }
+    }
+    return {
+      self:w.__morrowTestMinimapShown({id:pilot.id,x:pilot.x,y:pilot.y}),
+      concealed:w.__morrowTestMinimapShown({id:'enemy',x:null,y:null}),
+      mismatch,samples,offShown,insideShown
+    };
+  });
+
+  expect(result.self).toBe(true);            // your own marker is always shown
+  expect(result.concealed).toBe(false);      // grass-concealed enemy (x/y null) stays hidden
+  expect(result.offShown).toBe(0);           // the core rule: nothing off-screen on the map
+  expect(result.insideShown).toBeGreaterThan(0);
+  expect(result.mismatch).toBe(0);           // view gating == the drawn view box
+  expect(pageErrors).toEqual([]);
 });
