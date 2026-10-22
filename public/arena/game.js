@@ -61,27 +61,23 @@
   // Flat geometric visual kit. Every restyled drawer pulls colours and shape
   // helpers from here so the whole scene shares one crisp, bright look.
   const FLAT = {
-    outline:'#1a1f2c', ink:'#0b0e16', paper:'#f4ecd0',
-    shadow:'rgba(26,31,44,0.22)', softShadow:'rgba(26,31,44,0.10)',
+    outline:'#1b2438', ink:'#111a2c', paper:'#fdf6dd',
+    shadow:'rgba(27,36,56,0.22)', softShadow:'rgba(27,36,56,0.10)',
     map:{
-      tidal:{base:'#3a7a4a',mid:'#4d9260',light:'#79c083',dark:'#225a32',accent:'#7fd6a3',deep:'#163a22',soil:'#6b4a2e',path:'#c8b27a',stone:{base:'#9ab0a2',mid:'#6a8170',dark:'#344b3d'}},
-      glass:{base:'#6e8344',mid:'#85a055',light:'#bcd278',dark:'#465a26',accent:'#e8d96a',deep:'#2d3818',soil:'#7a5b32',path:'#d9c382',stone:{base:'#c8b29a',mid:'#9c8569',dark:'#564434'}},
-      ember:{base:'#7a5b4a',mid:'#a0745a',light:'#d4a079',dark:'#4d362a',accent:'#f2a06a',deep:'#2c1e15',soil:'#5a3a28',path:'#caa078',stone:{base:'#a89086',mid:'#7a5d52',dark:'#3f2c24'}},
+      tidal:{base:'#6fbf5d',mid:'#7fce6b',light:'#94dd7c',dark:'#4f9c46',accent:'#a8ef8c',deep:'#2f7d45',soil:'#b57a3f',path:'#d9bd83',stone:{base:'#d5dde8',mid:'#a9b4c5',dark:'#727f94'}},
+      glass:{base:'#a8cf63',mid:'#b8da72',light:'#d3e88c',dark:'#82a944',accent:'#e8f29a',deep:'#4c8b3a',soil:'#b87c42',path:'#efd9a4',stone:{base:'#e2ddc9',mid:'#bdb7a0',dark:'#8a846c'}},
+      ember:{base:'#cf9468',mid:'#dda377',light:'#efc196',dark:'#ab7248',accent:'#ffd0a0',deep:'#b4552f',soil:'#ad7440',path:'#f0cfa0',stone:{base:'#ded4cb',mid:'#b7a99c',dark:'#84766a'}},
     },
-    stone:{base:'#b5bcc2',mid:'#8a9097',dark:'#4a5057',light:'#dde2e6',outline:'#1a1f2c'},
-    stoneWarm:{base:'#c8b29a',mid:'#9c8569',dark:'#564434',light:'#ecdcc4',outline:'#1a1f2c'},
-    stoneCool:{base:'#a8b4b8',mid:'#7b878d',dark:'#3f474c',light:'#cdd6d9',outline:'#1a1f2c'},
-    wood:{base:'#d49a5c',mid:'#a06a36',dark:'#5b3818',light:'#ecc890',outline:'#1a1f2c'},
-    crate:{base:'#e0a463',mid:'#a96a35',dark:'#5a3617',light:'#f4c98a',trim:'#3b2410',outline:'#1a1f2c'},
-    metal:{base:'#a7b1ba',mid:'#707a83',dark:'#2f353b',light:'#cfd6dc',outline:'#1a1f2c'},
-    barrel:{base:'#c47a3a',mid:'#8e4d20',dark:'#4a2410',band:'#2a1808',outline:'#1a1f2c'},
-    leaf:{tidal:{base:'#3f8a52',mid:'#5eaa6c',light:'#9bd87f',dark:'#1f5230'},glass:{base:'#6a8a3a',mid:'#8fae4d',light:'#c4d779',dark:'#3d5220'},ember:{base:'#7a4a32',mid:'#a26a4a',light:'#d49568',dark:'#4a2a18'}},
-    water:{tidal:{base:'#3aa0b3',mid:'#5ec0d2',light:'#bce6ef',dark:'#1f5d6c',bank:'#2f5b3b',bankLight:'#6fae7b'},glass:{base:'#4a8fb3',mid:'#6ab1d2',light:'#bce0ef',dark:'#1f4f6c',bank:'#3a4a30',bankLight:'#7a9a64'},ember:{base:'#7a4a8a',mid:'#a06ab2',light:'#d6b4e0',dark:'#3f1f4d',bank:'#4a3040',bankLight:'#8a6478'}},
-    portal:{tidal:{outer:'#9cf4c2',mid:'#36b58c',core:'#d4ffe2',spark:'#f4fff2',floor:'#7de2aa',floorDark:'#164936'},glass:{outer:'#77e4f0',mid:'#3da8c5',core:'#c8fbff',spark:'#e8ffff',floor:'#69d6e3',floorDark:'#173f53'},ember:{outer:'#d98cff',mid:'#9d5ad3',core:'#f2c6ff',spark:'#ffe6ff',floor:'#c17bea',floorDark:'#3d275a'}},
-    spike:{base:'#cfd2d6',dark:'#3f3a3a',tip:'#f4f6f8'},
-    flag:{a:'#63c9ff',b:'#ff8568'},
-    resource:{health:'#ef7473',healthLight:'#ffd9d2',armor:'#73c7e4',armorLight:'#d6f1fb'},
-    weapon:{health:'#69c79a',energy:'#9bd4ff',hit:'#ffeec0'},
+    stone:{base:'#d5dde8',mid:'#a9b4c5',dark:'#727f94',light:'#eef3f9',outline:'#1b2438'},
+    stoneWarm:{base:'#e0cdb4',mid:'#bfa588',dark:'#8a6f52',light:'#f4e6d2',outline:'#1b2438'},
+    stoneCool:{base:'#ccd4e2',mid:'#a3adc0',dark:'#6b768c',light:'#eaf1fa',outline:'#1b2438'},
+    wood:{base:'#d9a05f',mid:'#b57a3f',dark:'#7d4f27',light:'#f0c68c',outline:'#1b2438'},
+    crate:{base:'#e0a463',mid:'#b87c42',dark:'#7a4a22',light:'#f4cd94',trim:'#5a3a18',outline:'#1b2438'},
+    metal:{base:'#c3ccd9',mid:'#909db1',dark:'#5a6577',light:'#eaf0f8',outline:'#1b2438'},
+    barrel:{base:'#d98a3f',mid:'#a85a22',dark:'#6b3410',band:'#3a2410',outline:'#1b2438'},
+    leaf:{tidal:{base:'#3f9b55',mid:'#54b169',light:'#7fd38a',dark:'#2f7d45'},glass:{base:'#63a747',mid:'#7cc257',light:'#a8dd7c',dark:'#4c8b3a'},ember:{base:'#cf6b3c',mid:'#e2874e',light:'#f2ad78',dark:'#b4552f'}},
+    water:{tidal:{base:'#4ab7d5',mid:'#7fd8ea',light:'#d4f6ff',dark:'#2a86a9',bank:'#e0c48c',bankLight:'#f2dcae'},glass:{base:'#4fb2d4',mid:'#8adcec',light:'#dcfaff',dark:'#2a7fa8',bank:'#e8cf9b',bankLight:'#f6e2b8'},ember:{base:'#7a68c4',mid:'#b3a3ee',light:'#e6ddff',dark:'#4a3d8c',bank:'#e0b184',bankLight:'#f4d3ad'}},
+    portal:{tidal:{outer:'#a8f0c4',mid:'#39c79a',core:'#e8fff2',spark:'#ffffff',floor:'#8ce8b8',floorDark:'#1f6b52'},glass:{outer:'#8ee8f4',mid:'#3fb6d4',core:'#e0fcff',spark:'#ffffff',floor:'#7adcea',floorDark:'#1f6288'},ember:{outer:'#d6a8ff',mid:'#9a63d8',core:'#f6e6ff',spark:'#ffffff',floor:'#c48ef0',floorDark:'#4a3a7a'}}
   };
   function mapFlat(){return FLAT.map[map]||FLAT.map.tidal}
   function leafFlat(){return FLAT.leaf[map]||FLAT.leaf.tidal}
@@ -1013,38 +1009,39 @@
   // server collision rectangle. Nothing here changes simulation data.
   const BORDER_WIDTH = 34;
   const SCENE = {
-    // Palette sampled from official Slay.one arena captures: dark slate
-    // floors, neutral grey stone with a bright top face, near-black outlines,
-    // deep green vegetation and muted teal water.
+    // Slay.one reads instantly because every material owns one hue family:
+    // foliage green, timber orange, masonry blue-grey, water teal. We keep that
+    // grammar and push the key much brighter, so the field looks sunny and the
+    // pilots (saturated jackets) still pop as the only warm-red accents.
     tidal:{
-      seed:1337, void:'#111713',
-      base:'#34463a', mid:'#3d5144', light:'#4b6353', dark:'#22322a',
-      path:'#4a4436', pathLight:'#5a5342',
-      edge:{face:'#5f665f', top:'#767d74', side:'#414741', dirt:'#2b322d', line:'#141a16', moss:'#3f5a37'},
-      stone:{top:'#8d9089', face:'#71756e', side:'#4b504b', line:'#121613', moss:'#47643d', crack:'#565b55'},
-      leaf:{dark:'#1e3325', base:'#33553a', mid:'#447049', light:'#63915f'},
-      water:{deep:'#1d3540', mid:'#2b4f5c', shallow:'#477582', foam:'#a8cfc9', bank:'#2a3a31'},
-      wood:{base:'#6f4b2c', mid:'#543620', dark:'#2f1e0f', light:'#8f6a45'}
+      seed:1337, void:'#1b2a24',
+      base:'#6fbf5d', mid:'#7fce6b', light:'#94dd7c', dark:'#4f9c46',
+      path:'#d9bd83', pathLight:'#eed7a4',
+      edge:{face:'#d3dce6', top:'#eef4fa', side:'#9caac0', dirt:'#c8a878', line:'#1b2438', moss:'#5aa04f'},
+      stone:{top:'#d5dde8', face:'#a9b4c5', side:'#727f94', line:'#1b2438', moss:'#5aa04f', crack:'#8d99ae'},
+      leaf:{dark:'#2f7d45', base:'#3f9b55', mid:'#54b169', light:'#7fd38a'},
+      water:{deep:'#2a86a9', mid:'#4ab7d5', shallow:'#7fd8ea', foam:'#eafcff', bank:'#e0c48c'},
+      wood:{base:'#d9a05f', mid:'#b57a3f', dark:'#7d4f27', light:'#f0c68c'}
     },
     glass:{
-      seed:2087, void:'#14150f',
-      base:'#43463c', mid:'#4c5044', light:'#5c6152', dark:'#2e312a',
-      path:'#6b5f3e', pathLight:'#7f7149',
-      edge:{face:'#5f6157', top:'#767a6d', side:'#42443c', dirt:'#2a2c26', line:'#15170f', moss:'#4a5a33'},
-      stone:{top:'#8e9084', face:'#727569', side:'#4d5047', line:'#13150e', moss:'#516036', crack:'#585b51'},
-      leaf:{dark:'#213322', base:'#37553a', mid:'#487148', light:'#6a9259'},
-      water:{deep:'#203a42', mid:'#2f5460', shallow:'#4c7883', foam:'#adcfc8', bank:'#2e3a2e'},
-      wood:{base:'#6f4b2c', mid:'#543620', dark:'#2f1e0f', light:'#8f6a45'}
+      seed:2087, void:'#222a1e',
+      base:'#a8cf63', mid:'#b8da72', light:'#d3e88c', dark:'#82a944',
+      path:'#efd9a4', pathLight:'#f7e6bd',
+      edge:{face:'#dcd8c4', top:'#f4f0de', side:'#a9a48c', dirt:'#c9a86a', line:'#1b2438', moss:'#7fae55'},
+      stone:{top:'#e2ddc9', face:'#bdb7a0', side:'#8a846c', line:'#1b2438', moss:'#7fae55', crack:'#a09a82'},
+      leaf:{dark:'#4c8b3a', base:'#63a747', mid:'#7cc257', light:'#a8dd7c'},
+      water:{deep:'#2a7fa8', mid:'#4fb2d4', shallow:'#8adcec', foam:'#eefcff', bank:'#e8cf9b'},
+      wood:{base:'#dda666', mid:'#b87c42', dark:'#7d4f27', light:'#f4cd94'}
     },
     ember:{
-      seed:4211, void:'#151110',
-      base:'#453b34', mid:'#4f443c', light:'#605248', dark:'#2f2822',
-      path:'#5a4736', pathLight:'#6c563f',
-      edge:{face:'#625951', top:'#7a6f64', side:'#453e38', dirt:'#2c2621', line:'#171310', moss:'#4a4530'},
-      stone:{top:'#8f867e', face:'#746b64', side:'#4f4842', line:'#141110', moss:'#514a34', crack:'#5a524b'},
-      leaf:{dark:'#372c1c', base:'#514128', mid:'#655334', light:'#837043'},
-      water:{deep:'#2b2436', mid:'#3e3450', shallow:'#584a6b', foam:'#b7a8c8', bank:'#332c33'},
-      wood:{base:'#6b482a', mid:'#4f341d', dark:'#2c1c0e', light:'#8a6540'}
+      seed:4211, void:'#2a211c',
+      base:'#cf9468', mid:'#dda377', light:'#efc196', dark:'#ab7248',
+      path:'#f0cfa0', pathLight:'#fae1bc',
+      edge:{face:'#d8cdc4', top:'#f2eae2', side:'#a89a8e', dirt:'#c08d5f', line:'#1b2438', moss:'#8a9a52'},
+      stone:{top:'#ded4cb', face:'#b7a99c', side:'#84766a', line:'#1b2438', moss:'#8a9a52', crack:'#9c8d80'},
+      leaf:{dark:'#b4552f', base:'#cf6b3c', mid:'#e2874e', light:'#f2ad78'},
+      water:{deep:'#4a3d8c', mid:'#7a68c4', shallow:'#b3a3ee', foam:'#f2ecff', bank:'#e0b184'},
+      wood:{base:'#d59d5e', mid:'#ad7440', dark:'#744a26', light:'#efc48c'}
     }
   };
   function scenePal(){return SCENE[map]||SCENE.tidal}
@@ -1099,43 +1096,62 @@
     ctx.fillRect(c0*TILE_PX,r0*TILE_PX,(c1-c0)*TILE_PX,(r1-r0)*TILE_PX);
     // One stone slab per grid cell: flat fill, a light top/left bevel, a dark
     // bottom/right seam, then sparse moss. This is the Slay.one floor read.
+    // Grass field: no visible grid. Slabs are replaced by soft tonal patches,
+    // blade marks and the odd flower, so the ground has texture without ever
+    // competing with the pilots for attention.
+    // Grass field: no visible grid. Slabs are replaced by soft tonal patches,
+    // blade marks and the odd flower, so the ground has texture without ever
+    // competing with the pilots for attention.
     for(let row=r0;row<r1;row++)for(let col=c0;col<c1;col++){
       const x=col*TILE_PX, y=row*TILE_PX, h=tileHash(col,row,map.length);
-      const pick=h%7;
-      if(pick<2){
-        ctx.globalAlpha=pick===0?.05:.04;
-        ctx.fillStyle=pick===0?pal.light:pal.dark;
+      const roll=h%9;
+      // A very quiet checker keeps the 100px lattice readable without lines.
+      ctx.globalAlpha=(col+row)%2?.055:.015;
+      ctx.fillStyle=(col+row)%2?pal.dark:pal.light;
+      ctx.fillRect(x,y,TILE_PX,TILE_PX);
+      ctx.globalAlpha=1;
+      if(roll<3){
+        ctx.globalAlpha=roll===0?.13:.08;
+        ctx.fillStyle=roll===1?pal.mid:pal.light;
         ctx.fillRect(x,y,TILE_PX,TILE_PX);
         ctx.globalAlpha=1;
       }
-      if(pick===2){
-        ctx.globalAlpha=.05;ctx.fillStyle=pal.mid;
-        ctx.fillRect(x,y,TILE_PX,TILE_PX);ctx.globalAlpha=1;
+      if(roll===4){
+        // A slightly darker clump breaks up large empty fields.
+        ctx.globalAlpha=.16;ctx.fillStyle=pal.dark;
+        ctx.beginPath();ctx.ellipse(x+28+((h>>>3)%40),y+32+((h>>>7)%36),26+((h>>>5)%14),18+((h>>>9)%10),((h%9)/9)*3,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;
       }
-      // bevel
-      ctx.globalAlpha=.12;ctx.fillStyle=pal.light;
-      ctx.fillRect(x,y,TILE_PX,2);ctx.fillRect(x,y,2,TILE_PX);
-      ctx.globalAlpha=.38;ctx.fillStyle=pal.dark;
-      ctx.fillRect(x,y+TILE_PX-2,TILE_PX,2);ctx.fillRect(x+TILE_PX-2,y,2,TILE_PX);
+      const blades=low?2:3;
+      for(let i=0;i<blades;i++){
+        const r=(h>>>(i*7))&2047;
+        const px=x+8+((r*37)%(TILE_PX-16)), py=y+20+((r*53)%(TILE_PX-26));
+        const len=6+(r%6), lean=((r>>3)%7)-3;
+        ctx.strokeStyle=i%2?pal.dark:pal.light;
+        ctx.globalAlpha=.42+(r%3)*.10;ctx.lineWidth=2.4;ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(px,py);
+        ctx.quadraticCurveTo(px+lean*.4,py-len*.62,px+lean,py-len);ctx.stroke();
+      }
+      // Fine speckle: slay.one's grass reads "textured" mostly because of a
+      // dense 2px dot field, not because of big shapes. Keep it low contrast
+      // so it never turns into noise under the pilots.
+      const dots=low?5:9;
+      for(let i=0;i<dots;i++){
+        const r=(h>>>(i*5+3))&4095;
+        const px=x+4+((r*29)%(TILE_PX-8)), py=y+4+((r*61)%(TILE_PX-8));
+        ctx.globalAlpha=.16+(r%4)*.05;
+        ctx.fillStyle=i%3===0?pal.light:pal.dark;
+        ctx.fillRect(px,py,2,2);
+      }
       ctx.globalAlpha=1;
-      // moss / grass tufts on a third of the slabs
-      if(h%3===0){
-        const tufts=low?2:3;
-        for(let i=0;i<tufts;i++){
-          const r=(h>>>(i*6))&1023;
-          const px=x+10+((r*37)%(TILE_PX-20)), py=y+16+((r*53)%(TILE_PX-24));
-          const len=5+(r%5), lean=((r>>3)%5)-2;
-          ctx.strokeStyle=i===0?pal.light:pal.dark;
-          ctx.globalAlpha=.26+(r%3)*.06;ctx.lineWidth=1.6;ctx.lineCap='round';
-          ctx.beginPath();ctx.moveTo(px,py);
-          ctx.quadraticCurveTo(px+lean*.4,py-len*.6,px+lean,py-len);ctx.stroke();
-        }
+      if(h%13===0){
+        // Sparse flowers: one warm dot and one pale dot.
+        const fx=x+14+((h>>>4)%(TILE_PX-28)), fy=y+16+((h>>>8)%(TILE_PX-32));
+        ctx.globalAlpha=.85;ctx.fillStyle='#fdf6dd';
+        ctx.beginPath();ctx.arc(fx,fy,2.1,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#ffd45e';ctx.beginPath();ctx.arc(fx,fy,1,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;
       }
-      if(h%11===0){
-        ctx.globalAlpha=.22;ctx.fillStyle=pal.dark;
-        ctx.fillRect(x+18+(h%50),y+22+((h>>>4)%44),6,2);
-      }
-      ctx.globalAlpha=1;
     }
     drawArenaLip(pal);
   }
@@ -1262,7 +1278,12 @@
     sprite.width=Math.max(1,Math.round(w*ratio));sprite.height=Math.max(1,Math.round(h*ratio));
     const g=sprite.getContext('2d');g.scale(ratio,ratio);g.imageSmoothingEnabled=false;
     const rng=makeRng(tileHash(Math.round(x/TILE_PX),Math.round(y/TILE_PX),variant));
-    g.fillStyle=lf.dark;g.fillRect(0,0,w,h);
+    // Bush body: a soft rounded mass, then leaf clusters that spill past it so
+    // the silhouette reads as vegetation rather than a painted rectangle.
+    g.fillStyle=lf.base;
+    g.beginPath();
+    if(g.roundRect)g.roundRect(2,2,w-4,h-4,Math.min(18,Math.min(w,h)*.22));else g.rect(2,2,w-4,h-4);
+    g.fill();
     const cols=Math.max(1,Math.round(w/TILE_PX)), rows=Math.max(1,Math.round(h/TILE_PX));
     for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
       const cx=(col+.5)*(w/cols), cy=(row+.5)*(h/rows);
@@ -1270,15 +1291,15 @@
       for(let i=0;i<5;i++){
         const angle=rng()*Math.PI*2, dist=radius*(.25+rng()*.65);
         const rx=radius*(.55+rng()*.5), ry=rx*(.7+rng()*.35);
-        g.fillStyle=rng()<.45?lf.base:lf.dark;
+        g.fillStyle=rng()<.45?lf.mid:lf.dark;
         g.beginPath();
         g.ellipse(cx+Math.cos(angle)*dist,cy+Math.sin(angle)*dist*.82,rx,ry,rng(),0,Math.PI*2);
         g.fill();
       }
-      g.globalAlpha=.85;g.fillStyle=lf.mid;
+      g.globalAlpha=.95;g.fillStyle=lf.light;
       g.beginPath();g.ellipse(cx-radius*.08,cy-radius*.12,radius*.52,radius*.4,0,0,Math.PI*2);g.fill();
-      g.globalAlpha=.5;g.fillStyle=lf.light;
-      g.beginPath();g.ellipse(cx-radius*.22,cy-radius*.3,radius*.26,radius*.16,-.5,0,Math.PI*2);g.fill();
+      g.globalAlpha=.55;g.fillStyle='#ffffff';
+      g.beginPath();g.ellipse(cx-radius*.22,cy-radius*.3,radius*.24,radius*.14,-.5,0,Math.PI*2);g.fill();
       g.globalAlpha=1;
     }
     // Pixel dabs: the leaf-noise that gives Slay.one bushes their texture.
@@ -1299,8 +1320,12 @@
       g.beginPath();g.moveTo(px,py);g.lineTo(px+(rng()-.5)*3,py-len);g.stroke();
     }
     g.globalAlpha=1;
-    // Tile edge: darker rim so the concealment rectangle stays legible.
-    g.strokeStyle=lf.dark;g.lineWidth=3;g.strokeRect(1.5,1.5,w-3,h-3);
+    // Rim: a slightly darker leaf tone keeps the concealment block legible
+    // without turning it back into a hard rectangle.
+    g.strokeStyle='rgba(24,42,30,.55)';g.lineWidth=3;
+    g.beginPath();
+    if(g.roundRect)g.roundRect(3,3,w-6,h-6,Math.min(18,Math.min(w,h)*.22));else g.rect(3,3,w-6,h-6);
+    g.stroke();
     coverSprites.set(key,sprite);
     return sprite;
   }
@@ -2535,14 +2560,14 @@
     // touching world-space colours or collision.
     ctx.save();
     const key=ctx.createLinearGradient(0,0,W*.85,H);
-    key.addColorStop(0,'rgba(255,246,196,.05)');
+    key.addColorStop(0,'rgba(255,250,214,.06)');
     key.addColorStop(.45,'rgba(255,246,196,.012)');
     key.addColorStop(1,'rgba(10,22,18,.05)');
     ctx.fillStyle=key;ctx.fillRect(0,0,W,H);
     const vignette=ctx.createRadialGradient(W*.5,H*.46,Math.min(W,H)*.18,W*.5,H*.5,Math.max(W,H)*.8);
-    vignette.addColorStop(0,'rgba(4,10,7,0)');
-    vignette.addColorStop(.7,'rgba(4,10,7,.10)');
-    vignette.addColorStop(1,'rgba(4,10,7,.34)');
+    vignette.addColorStop(0,'rgba(10,20,14,0)');
+    vignette.addColorStop(.75,'rgba(10,20,14,.05)');
+    vignette.addColorStop(1,'rgba(10,20,14,.18)');
     ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
     ctx.globalAlpha=.12;ctx.strokeStyle='#f6e7a8';ctx.lineWidth=1;ctx.strokeRect(8.5,8.5,W-17,H-17);
     ctx.restore();

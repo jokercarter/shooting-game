@@ -1,7 +1,1 @@
-<?xml version='1.0' encoding='utf-8'?>
-<svg xmlns="http://www.w3.org/2000/svg" width="140" height="80" viewBox="0 0 140 80" shape-rendering="crispEdges"><ellipse cx="70" cy="67" rx="56" ry="7" fill="#0b1712" opacity=".45" />
-      <rect x="15" y="50" width="110" height="10" fill="#2b2927" />
-      <g fill="#d6c56d" stroke="#3a3229" stroke-width="3">
-        <path d="M25 51l11-31 11 31zM51 51l11-39 11 39zM78 51l11-33 11 33zM104 51l10-26 10 26z" />
-      </g>
-    </svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="80" viewBox="0 0 140 80" shape-rendering="geometricPrecision"><ellipse cx="70" cy="66" rx="52" ry="7" fill="#1b2438" opacity=".2"/><path d="M20 52l11-34 11 34z" fill="#eaf0f8" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/><path d="M42 52l11-34 11 34z" fill="#eaf0f8" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/><path d="M64 52l11-34 11 34z" fill="#eaf0f8" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/><path d="M86 52l11-34 11 34z" fill="#eaf0f8" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/><path d="M108 52l11-34 11 34z" fill="#eaf0f8" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/><rect x="10" y="50" width="120" height="18" rx="8" fill="#909db1" stroke="#1b2438" stroke-width="5"/><rect x="18" y="55" width="104" height="6" rx="3" fill="#5a6577" opacity=".45"/></svg>
