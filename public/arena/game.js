@@ -12,6 +12,9 @@
   const WORLD_W = 3000, WORLD_H = 2000, WORLD_SCALE = 3.125;
   const CAMERA_ZOOM = 1.08;
   const CAMERA_MOUSE_LOOK_AHEAD = 128;
+  // How long the camera keeps looking at the body after the local pilot dies,
+  // so the topple is actually readable before the view hands over.
+  const CORPSE_LINGER_MS = 1400;
   const miniMap = document.querySelector('#mini-map'), miniCtx = miniMap.getContext('2d');
   const ui = {
     start: document.querySelector('#start-screen'), startButton: document.querySelector('#start'), watchRoom: document.querySelector('#watch-room'),
@@ -24,6 +27,8 @@
     ammo: document.querySelector('#ammo'), info: document.querySelector('#weapon-info'), reloadStatus: document.querySelector('#reload-status'), reloadFill: document.querySelector('#reload-fill'), reloadLabel: document.querySelector('#reload-label'),
     upgradePoints: document.querySelector('#upgrade-points'),
     confirmUpgrade: document.querySelector('#confirm-upgrade'),
+    levelBadge: document.querySelector('#level-badge'),
+    xpFill: document.querySelector('#xp-fill'), xpLabel: document.querySelector('#xp-label'),
     state: document.querySelector('#state-label'), perf: document.querySelector('#perf-label'), settings: document.querySelector('#settings'), optionsPanel: document.querySelector('#options-panel'), copyRoom: document.querySelector('#copy-room'),
     toast: document.querySelector('#toast'), mapName: document.querySelector('#map-name'),
     pilotCount: document.querySelector('#pilot-count'), deathBanner: document.querySelector('#death-banner'),
@@ -125,7 +130,7 @@
   const touch = {moveId:null,aimId:null,moveX:0,moveY:0,originX:0,originY:0};
   let socket, lobbySocket, lobbyReconnectTimer, id, room, roomCapacity=20, map='tidal', mode='normal', modeName='Normal Deathmatch', maps={}, weapons={}, players=[], previousPlayers=new Map(), spectatorMode=false, privatePlayer=null, privateVotedMap=null, lastStateMessage=null;
   let cameraX=W/2,cameraY=H/2,spectatorTarget=null,spectatorId=null;
-  let cameraShake=0, screenShake=0, explosionFlash=0, damageFlash=0, hitConfirm=0, weaponRecoil=new Map(), cameraKickX=0, cameraKickY=0;
+  let cameraShake=0, screenShake=0, explosionFlash=0, damageFlash=0, hitConfirm=0, weaponRecoil=new Map(), cameraKickX=0, cameraKickY=0, ownDeathAt=0;
   let debugProjectiles=[], projectiles=[], pickups=[], pickupSpawns=[], resources=[], resourceSpawns=[], previousProjectileIds=new Set(), projectileTrails=new Map(), particles=[], rings=[], muzzles=[], damageNumbers=[], started=false;
   let flags={}, teamScores={'0':0,'1':0}, winner=null;
   let selectedMap='tidal', selectedMode='normal', selectedSkin='wayfinder', selectedUpgrade='vitality', last=0, nextRenderAt=0, stateAt=0, stateIntervalMs=50, startedAt=0, dashReadyAt=0, inputTimer, inputIntervalMs=25, pingTimer, roomTimer, toastTimer, reconnectTimer=null, reconnectAttempts=0, intentionalSocketClose=false;
@@ -188,7 +193,7 @@
   const wsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena';
   const lobbyWsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena/lobby';
   const testReconnectMode=new URLSearchParams(location.search).has('test-reconnect');
-  const PRIVATE_PLAYER_FIELDS=['id','energy','owned_weapons','upgrades','ammo'];
+  const PRIVATE_PLAYER_FIELDS=['id','energy','owned_weapons','upgrades','ammo','level','xp','xp_to_next','stat_points'];
   function privatePlayerFields(player){
     if(!player)return null;
     const fields={};for(const key of PRIVATE_PLAYER_FIELDS)if(Object.prototype.hasOwnProperty.call(player,key))fields[key]=player[key];
@@ -249,7 +254,8 @@
   const mapDef=()=>maps[map]||{accent:'#55d7c1',ground:'#10252a',obstacles:[],cover:[]};
   const localPlayer=()=>players.find(p=>p.id===id);
   if(testReconnectMode){
-    window.__morrowTestLocalPlayer=()=>{const p=localPlayer();return p?{id:p.id,x:p.x,y:p.y,weapon:p.weapon,owned_weapons:p.owned_weapons,ammo:p.ammo,energy:p.energy,armor:p.armor,hp:p.hp,max_hp:p.max_hp,dead:p.dead,knocked:p.knocked,jumping:p.jumping,state_interval_ms:stateIntervalMs,input_interval_ms:inputIntervalMs,render_target_fps:MAX_RENDER_FPS}:null};
+    window.__morrowTestLocalPlayer=()=>{const p=localPlayer();return p?{id:p.id,x:p.x,y:p.y,weapon:p.weapon,owned_weapons:p.owned_weapons,ammo:p.ammo,energy:p.energy,armor:p.armor,hp:p.hp,max_hp:p.max_hp,dead:p.dead,knocked:p.knocked,jumping:p.jumping,state_interval_ms:stateIntervalMs,input_interval_ms:inputIntervalMs,render_target_fps:MAX_RENDER_FPS,camera_x:cameraX,camera_y:cameraY,own_death_at:ownDeathAt,now:performance.now()}:null};
+    window.__morrowTestSetLocal=(patch={})=>{const p=localPlayer();if(!p)return null;for(const k in patch){if(k==='x'||k==='y')continue;p[k]=patch[k];}return {hp:p.hp,armor:p.armor,max_armor:p.max_armor,max_hp:p.max_hp};};
     window.__morrowTestSpawnProjectile=(opts={})=>{
       // Dev-only: draw any weapon's projectile without waiting for a pickup.
       const me=localPlayer(),key=opts.weapon||'pulse',w=weapons[key]||{};
@@ -321,6 +327,21 @@
       return shakeScale;
     };
     window.__morrowTestMinimapShown = player => minimapShouldShow(player);
+    window.__morrowTestPlayers = () => players.map(p => ({id:p.id,x:p.x,y:p.y,dead:!!p.dead,dead_for:p.dead_for}));
+    window.__morrowTestPlayers = () => players.map(p => ({id:p.id,x:p.x,y:p.y,dead:!!p.dead,dead_for:p.dead_for}));
+    // Dev-only: inject a synthetic pilot so the progression HUD can be
+    // inspected without having to stage a real fight.
+    window.__morrowTestInjectPlayer=(patch={})=>{
+      const injected={id:'test-pilot',name:'TestPilot',hue:ART_TOKENS.gold,skin:'wayfinder',
+        x:cameraX+120,y:cameraY,angle:0,hp:100,max_hp:100,armor:0,max_armor:100,score:0,
+        kills:0,deaths:0,level:1,xp:0,xp_to_next:60,xp_start:0,stat_points:0,upgrades:{},
+        dead:false,dead_for:0,corpse_angle:0,hidden:false,...patch};
+      players=[...players.filter(p=>p.id!==injected.id),injected];
+      return injected.id;
+    };
+    window.__morrowTestRemovePlayer=(playerId='test-pilot')=>{
+      players=players.filter(p=>p.id!==playerId);
+    };
   }
   function updateCamera(){
     const own=localPlayer();
@@ -330,10 +351,16 @@
       p=alive.find(player=>player.id===spectatorId)||alive[0]||null;
       spectatorId=p?.id||null;spectatorTarget=p||null;
     }else if(own?.dead){
-      const alive=players.filter(player=>player.id!==own.id&&!player.dead&&Number.isFinite(player.x)&&Number.isFinite(player.y));
-      p=alive.find(player=>player.id===spectatorId)||alive.sort((a,b)=>Math.hypot(a.x-cameraX,a.y-cameraY)-Math.hypot(b.x-cameraX,b.y-cameraY))[0]||own;
-      spectatorId=p?.id===own.id?null:p?.id||null;spectatorTarget=p?.id===own.id?null:p;
-    }else{spectatorTarget=null;spectatorId=null}
+      // The body stays where it fell, so the camera holds on it briefly before
+      // switching to a living pilot.
+      if(performance.now()-ownDeathAt<CORPSE_LINGER_MS){
+        p=own;spectatorTarget=null;spectatorId=null;
+      }else{
+        const alive=players.filter(player=>player.id!==own.id&&!player.dead&&Number.isFinite(player.x)&&Number.isFinite(player.y));
+        p=alive.find(player=>player.id===spectatorId)||alive.sort((a,b)=>Math.hypot(a.x-cameraX,a.y-cameraY)-Math.hypot(b.x-cameraX,b.y-cameraY))[0]||own;
+        spectatorId=p?.id===own.id?null:p?.id||null;spectatorTarget=p?.id===own.id?null:p;
+      }
+    }else{spectatorTarget=null;spectatorId=null;ownDeathAt=0}
     const point=p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?renderPoint(p):{x:WORLD_W/2,y:WORLD_H/2};
     const mouseBiasX=Math.max(-1,Math.min(1,(mouse.x-W/2)/(W*.5)));
     const mouseBiasY=Math.max(-1,Math.min(1,(mouse.y-H/2)/(H*.5)));
@@ -419,7 +446,7 @@
     players=[];previousPlayers=new Map();projectiles=[];pickups=[];pickupSpawns=[];resources=[];resourceSpawns=[];flags={};teamScores={'0':0,'1':0};winner=null;spectatorId=null;spectatorTarget=null;spectatorMode=false;privatePlayer=null;privateVotedMap=null;lastStateMessage=null;
     particles=[];rings=[];muzzles=[];damageNumbers=[];projectileTrails.clear();previousProjectileIds.clear();weaponRecoil.clear();cameraShake=0;screenShake=0;explosionFlash=0;damageFlash=0;hitConfirm=0;cameraKickX=0;cameraKickY=0;cameraX=W/2;cameraY=H/2;rackSignature='';
     document.querySelector('#weapon-list')?.replaceChildren();
-    ui.health.style.width='100%';ui.healthNumber.textContent='100 / 100';if(ui.armor)ui.armor.style.width='0%';if(ui.energy)ui.energy.style.width='100%';ui.score.textContent='0000';ui.kills.textContent='0';ui.deaths.textContent='0';ui.timer.textContent='00:00';ui.dash.style.width='100%';ui.upgradePoints.textContent='技能点 0 · 每200战绩1点 · Space确认所选升级';ui.confirmUpgrade.disabled=true;ui.weapon.textContent='PULSE NEEDLE';ui.ammo.textContent='∞';ui.info.textContent='BOLT / 28 DMG';ui.reloadStatus?.classList.add('hidden');ui.reloadStatus?.classList.remove('empty');if(ui.reloadFill)ui.reloadFill.style.setProperty('--reload-progress','0%');if(ui.reloadLabel)ui.reloadLabel.textContent='0.0s';ui.pilotCount.textContent='1 / '+roomCapacity;ui.mapName.textContent=(maps[selectedMap]?.name||selectedMap||'MOSSWOOD').split(' ')[0].toUpperCase();ui.deathBanner.classList.add('hidden');ui.matchResult?.classList.add('hidden');ui.copyRoom.classList.add('hidden');
+    ui.health.style.width='100%';ui.healthNumber.textContent='100 / 100';if(ui.armor)ui.armor.style.width='0%';if(ui.energy)ui.energy.style.width='100%';ui.score.textContent='0000';ui.kills.textContent='0';ui.deaths.textContent='0';ui.timer.textContent='00:00';ui.dash.style.width='100%';ui.upgradePoints.textContent='属性点 0 · 每级 +2 点 · Space确认所选升级';ui.confirmUpgrade.disabled=true;ui.weapon.textContent='PULSE NEEDLE';ui.ammo.textContent='∞';ui.info.textContent='BOLT / 28 DMG';ui.reloadStatus?.classList.add('hidden');ui.reloadStatus?.classList.remove('empty');if(ui.reloadFill)ui.reloadFill.style.setProperty('--reload-progress','0%');if(ui.reloadLabel)ui.reloadLabel.textContent='0.0s';ui.pilotCount.textContent='1 / '+roomCapacity;ui.mapName.textContent=(maps[selectedMap]?.name||selectedMap||'MOSSWOOD').split(' ')[0].toUpperCase();ui.deathBanner.classList.add('hidden');ui.matchResult?.classList.add('hidden');ui.copyRoom.classList.add('hidden');if(ui.levelBadge)ui.levelBadge.textContent='LV 1';if(ui.xpFill)ui.xpFill.style.width='0%';if(ui.xpLabel)ui.xpLabel.textContent='0 / 60 XP';
   }
   function formatReplayTime(milliseconds){
     const total=Math.max(0,Math.floor(milliseconds/1000)),minutes=Math.floor(total/60),seconds=String(total%60).padStart(2,'0');
@@ -547,7 +574,9 @@
     }
     const reach=Math.max(620,radius*8);
     const t=Math.min(1,distance/reach);
-    return (1-t)*(1-t)*.93+.07;
+    // Pure falloff: once the blast is beyond the reach the shake is exactly
+    // zero, so a distant explosion never leaves a residual tremor behind.
+    return Math.pow(1-t,1.8);
   }
   function triggerExplosionFeedback(x,y,blast,cameraAmount,screenAmount){
     const scale=explosionShakeScale(x,y,blast);
@@ -707,7 +736,7 @@
       ui.state.textContent='MATCH COMPLETE';
     }
     const previousOwned=new Set(localPlayer()?.owned_weapons||[]);
-    const previousHealth=new Map(players.map(player=>[player.id,{hp:player.hp,x:player.x,y:player.y,kills:player.kills,score:player.score,weapon:player.weapon}]));
+    const previousHealth=new Map(players.map(player=>[player.id,{hp:player.hp,x:player.x,y:player.y,kills:player.kills,score:player.score,weapon:player.weapon,dead:player.dead}]));
     previousPlayers=new Map(players.map(p=>[p.id,p]));
     const previousById=new Map(players.map(player=>[player.id,player]));
     const wirePlayers=message.players||players;
@@ -724,6 +753,7 @@
     else if(winner){winner=null;resultShown=false;ui.matchResult?.classList.add('hidden')}
     const me=localPlayer();
     const previousMe=previousHealth.get(id);
+    if(me?.dead&&!previousMe?.dead)ownDeathAt=performance.now();
     if(me&&previousMe&&(me.kills>previousMe.kills||me.score>previousMe.score)){hitConfirm=1;triggerCameraShake(1.4)}
     for(const player of players){
       const old=previousHealth.get(player.id);if(!old||!Number.isFinite(player.hp)||player.hp>=old.hp)continue;
@@ -894,8 +924,20 @@
     if(localPlayer()?.weapon===weapon)return;
     send({type:'weapon',weapon});document.querySelectorAll('.weapon-slot').forEach(b=>b.classList.toggle('active',b.dataset.weapon===weapon));
   }
+  const UPGRADE_KEYS=['vitality','velocity','amplify','regeneration','tenacity','rapid','swift','penetration'];
+  const MAX_UPGRADE_TIER=8;
+  const UPGRADE_META={
+    vitality:{label:'加固外壳',hint:'最大生命 +20',key:'V'},
+    velocity:{label:'推进器',hint:'移动速度 +16',key:'X'},
+    amplify:{label:'弹药增幅',hint:'子弹伤害 +12%',key:'C'},
+    regeneration:{label:'再生舱',hint:'每秒回复 0.6',key:'B'},
+    tenacity:{label:'韧性装甲',hint:'受到伤害 -4%',key:'G'},
+    rapid:{label:'快速装填',hint:'射速 +6% / 装填 -8%',key:'T'},
+    swift:{label:'疾风冲刺',hint:'冲刺冷却 -0.18s',key:'F'},
+    penetration:{label:'穿透弹芯',hint:'子弹穿透 +1',key:'P'},
+  };
   function selectUpgrade(upgrade){
-    if(!['vitality','velocity','amplify'].includes(upgrade))return;
+    if(!UPGRADE_KEYS.includes(upgrade))return;
     selectedUpgrade=upgrade;
     document.querySelectorAll('[data-upgrade]').forEach(button=>{
       const selected=button.dataset.upgrade===upgrade;
@@ -905,12 +947,12 @@
   function buyUpgrade(upgrade=selectedUpgrade){
     selectUpgrade(upgrade);
     if(!started)return;
-    if((localPlayer()?.skill_points||0)<1){toast('没有可用技能点');return}
+    if((localPlayer()?.stat_points??localPlayer()?.skill_points??0)<1){toast('没有可用属性点');return}
     send({type:'upgrade',upgrade:selectedUpgrade});
   }
   function syncHud(){
     const p=localPlayer();if(!p){if(spectatorMode){ui.deathBanner.classList.add('hidden');ui.pilotCount.textContent=players.filter(v=>!v.is_bot).length+' / '+roomCapacity;ui.mapName.textContent=(maps[map]?.name||map||'MOSSWOOD').split(' ')[0].toUpperCase();ui.weapon.textContent='观战模式';ui.ammo.textContent='—';ui.info.textContent=spectatorTarget?'目标：'+spectatorTarget.name+' · [ ] 切换':'选择观战目标';}return;}
-    const maximum=100+(p.upgrades?.vitality||0)*20;
+    const maximum=Math.max(1,Number(p.max_hp)||(100+(p.upgrades?.vitality||0)*20));
     ui.health.style.width=Math.max(0,Math.min(100,p.hp/maximum*100))+'%';
     ui.healthNumber.textContent=Math.max(0,p.hp)+' / '+maximum;
     if(ui.armor)ui.armor.style.width=Math.max(0,Math.min(100,(p.armor||0)/(p.max_armor||100)*100))+'%';
@@ -918,8 +960,29 @@
     ui.deathBanner.classList.toggle('hidden',!p.dead);
     if(p.dead)ui.deathStatus.textContent='重启倒计时 '+Math.ceil(p.respawn_in||0)+' 秒'+(spectatorTarget?' · 观战 '+spectatorTarget.name+' · [ ] 切换':'');
     ui.score.textContent=String(p.score||0).padStart(4,'0');ui.kills.textContent=p.kills||0;ui.deaths.textContent=p.deaths||0;
-    ui.upgradePoints.textContent='技能点 '+(p.skill_points||0)+' · 每200战绩1点 · Space确认所选升级';
-    ui.confirmUpgrade.disabled=(p.skill_points||0)<1;
+    // ---- progression HUD: level, XP bar and unspent stat points -----------
+    const level=Math.max(1,Number(p.level)||1);
+    const xp=Math.max(0,Number(p.xp)||0);
+    const xpToNext=Math.max(1,Number(p.xp_to_next)||1);
+    const levelStart=Number.isFinite(p.xp_start)?Number(p.xp_start):Math.max(0,xp-(xp%xpToNext));
+    const statPoints=Math.max(0,Number(p.stat_points??p.skill_points??0));
+    if(ui.levelBadge)ui.levelBadge.textContent='LV '+level;
+    if(ui.xpFill){
+      const ratio=Math.max(0,Math.min(1,(xp-levelStart)/xpToNext));
+      ui.xpFill.style.width=(ratio*100)+'%';
+      ui.xpLabel.textContent=Math.max(0,Math.round(xp-levelStart))+' / '+xpToNext+' XP';
+    }
+    ui.upgradePoints.textContent='属性点 '+statPoints+' · 每级 +2 点 · Space确认所选升级';
+    ui.confirmUpgrade.disabled=statPoints<1;
+    document.querySelectorAll('[data-upgrade]').forEach(button=>{
+      const key=button.dataset.upgrade;
+      const tier=Number(p.upgrades?.[key]||0);
+      const badge=button.querySelector('.upgrade-tier');
+      if(badge)badge.textContent=tier+'/8';
+      button.classList.toggle('maxed',tier>=8);
+      const meta=UPGRADE_META[key];
+      if(meta)button.title=meta.label+' · '+meta.hint+'（每级 1 点，当前 '+tier+'/'+MAX_UPGRADE_TIER+'）';
+    });
     ui.pilotCount.textContent=players.filter(v=>!v.is_bot).length+' / '+roomCapacity;
     ui.mapName.textContent=(maps[map]?.name||map||'MOSSWOOD').split(' ')[0].toUpperCase();
     const w=weapons[p.weapon]||weapons.pulse||{};
@@ -1818,6 +1881,9 @@
   }
   function renderPoint(p){
     const old=previousPlayers.get(p.id);if(!old||!Number.isFinite(old.x)||!Number.isFinite(old.y)||!Number.isFinite(p.x)||!Number.isFinite(p.y))return{x:p.x,y:p.y};
+    // A respawn teleports the pilot to a fresh legal spot, so the dead -> alive
+    // transition must never interpolate across the map.
+    if(old.dead&&!p.dead)return{x:p.x,y:p.y};
     const elapsed=Math.max(0,performance.now()-stateAt),interval=Math.max(16,stateIntervalMs),t=Math.min(1,elapsed/interval);
     // The server remains authoritative. A short local-only lead hides 10Hz
     // crowded-room updates without changing collision, damage, or replay data.
@@ -1827,8 +1893,52 @@
     }
     return{x:old.x+(p.x-old.x)*t,y:old.y+(p.y-old.y)*t};
   }
+  // A downed pilot holds the exact spot where they fell. ``dead_for`` is the
+  // server-authoritative age of the death, so the topple plays once and lands
+  // identically on every client.
+  function drawCorpse(p){
+    const pos=renderPoint(p);
+    if(!Number.isFinite(pos.x)||!Number.isFinite(pos.y))return;
+    if(!visibleRect(pos.x-56,pos.y-56,112,112))return;
+    const age=Math.max(0,Number(p.dead_for)||0);
+    const fall=Math.min(1,age/.42);
+    const eased=1-Math.pow(1-fall,3);
+    const angle=Number(p.corpse_angle)||0;
+    const hue=p.hue||ART_TOKENS.gold;
+    const style=PILOT_STYLE[p.skin]||PILOT_STYLE.wayfinder;
+    ctx.save();
+    ctx.translate(Math.round(pos.x),Math.round(pos.y));
+    // A dark stain grounds the body and separates it from the grass.
+    ctx.globalAlpha=.30;
+    ctx.fillStyle='#2a1a18';
+    ctx.beginPath();ctx.ellipse(2,5,24,8,angle,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+    // The body pivots from an upright pose onto its back, so the fall reads as
+    // a topple rather than a fade-in.
+    ctx.rotate(angle+(1-eased)*1.15);
+    ctx.translate(0,(1-eased)*9);
+    ctx.scale(1,1-.16*eased);
+    // Legs trail behind, torso in the middle, head at the front.
+    flatRoundRect(-22,-4.5,15,9,4,style.trousers,FLAT.outline,2);
+    flatRoundRect(-9,-6.5,21,13,6,hue,FLAT.outline,2);
+    // One arm flung across the chest keeps the silhouette human.
+    flatRoundRect(-6,-8.5,12,4.5,2,style.detail,FLAT.outline,1.6);
+    // Head with the helmet still on: skin face, hull-coloured cap above it.
+    flatCircle(15,0,6.8,'#e6c3a1',FLAT.outline,2);
+    ctx.fillStyle=hue;
+    ctx.beginPath();ctx.arc(15,-1.2,6.8,Math.PI*1.02,Math.PI*1.98);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=FLAT.outline;ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.arc(15,-1.2,6.8,Math.PI*1.02,Math.PI*1.98);ctx.stroke();
+    ctx.restore();
+    // Dim name tag so a body can be attributed at a glance.
+    ctx.save();
+    ctx.fillStyle='rgba(232,238,214,.5)';ctx.font='9px "DM Mono",monospace';ctx.textAlign='center';
+    ctx.fillText(p.name||'',pos.x,pos.y+27);
+    ctx.restore();
+  }
   function drawPilot(p){
-    if(p.dead|| (p.hidden&&p.id!==id))return;
+    if(p.dead){drawCorpse(p);return;}
+    if(p.hidden&&p.id!==id)return;
     const pos=renderPoint(p);if(!visibleRect(pos.x-32,pos.y-42,64,84))return;
     const previous=previousPlayers.get(p.id),moving=previous&&Number.isFinite(previous.x)&&Number.isFinite(previous.y)&&Math.hypot(p.x-previous.x,p.y-previous.y)>.25;
     const step=moving?Math.sin(performance.now()/95+p.id.length)*2:0;
@@ -1859,7 +1969,7 @@
       ctx.scale(1+.26*power,.82);
     }
     if(p.shielded){
-      ctx.globalAlpha=.75;ctx.strokeStyle='#d1b1ff';ctx.lineWidth=2;ctx.setLineDash([4,3]);
+      ctx.globalAlpha=.8;ctx.strokeStyle='#9fe8ff';ctx.lineWidth=2;ctx.setLineDash([4,3]);
       ctx.beginPath();ctx.ellipse(0,1,25,20,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
     }
     if(p.is_zombie){
@@ -1870,34 +1980,47 @@
       ctx.fillStyle='#141d18';flatRoundRect(-7,-3,14,5,2,'#141d18',null);
       ctx.fillStyle='#e8d58d';ctx.fillRect(-5,-2,3,2);ctx.fillRect(3,-2,3,2);
     }else{
-      const style=PILOT_STYLE[p.skin]||PILOT_STYLE.wayfinder,skin='#f0c39a';
-      // Legs (subtle walk bob via step).
-      ctx.fillStyle=style.trousers;flatRoundRect(-7,2+step,6,13,2,style.trousers,FLAT.outline,2);
-      ctx.fillStyle=style.trousers;flatRoundRect(1,2-step,6,13,2,style.trousers,FLAT.outline,2);
-      // Back pack.
-      ctx.fillStyle=style.pack;flatRoundRect(-12,-6,5,11,2,style.pack,FLAT.outline,1.5);
-      // Torso (team-coloured).
-      ctx.fillStyle=p.hue;flatRoundRect(-8,-9,16,13,4,p.hue,FLAT.outline,2);
-      // Head.
-      ctx.fillStyle=skin;flatCircle(0,-14,7,skin,FLAT.outline,2);
-      // Helmet.
-      ctx.fillStyle=style.headgear;flatRoundRect(-7,-22,14,8,3,style.headgear,FLAT.outline,2);
-      // Visor band + eyes.
-      ctx.fillStyle=style.detail;flatRoundRect(-5,-16,10,4,2,style.detail,null);
-      ctx.fillStyle='#3b2a2b';ctx.fillRect(-4,-15,3,2);ctx.fillRect(2,-15,3,2);
+      const style=PILOT_STYLE[p.skin]||PILOT_STYLE.wayfinder,skin='#f0c39a',bob=step;
+      // Slay.one-style figure: a clean rounded body, a head, and a forward-
+      // facing visor. The team hue carries identity; the gun already aims.
+      flatRoundRect(-9,-5+bob,18,15,7,p.hue,FLAT.outline,2);                       // shoulders / torso
+      ctx.fillStyle=style.detail;flatRoundRect(-5,-2+bob,10,4,2,style.detail,null);// chest accent
+      flatCircle(0,-13+bob,6.5,skin,FLAT.outline,2);                              // head
+      ctx.fillStyle=p.hue;ctx.beginPath();ctx.arc(0,-13+bob,6.5,Math.PI,0);ctx.closePath();ctx.fill(); // team helmet cap
+      ctx.save();ctx.translate(0,-13+bob);ctx.rotate(a);                          // visor faces aim
+      ctx.fillStyle='#241f2b';ctx.fillRect(2.4,-3,2.6,2);ctx.fillRect(2.4,1,2.6,2);
+      ctx.restore();
     }
     if(blown)ctx.restore();
     ctx.restore();
     // Keep the pilot sprite upright; only the separate weapon layer follows aim.
     if(!p.is_zombie){
       const kick=weaponRecoil.get(p.id)||0;
-      ctx.save();ctx.translate(Math.round(pos.x),Math.round(pos.y+jumpOffset));ctx.rotate(a);ctx.translate(8-kick,-1);
+      ctx.save();ctx.translate(Math.round(pos.x),Math.round(pos.y+jumpOffset));ctx.rotate(a);ctx.translate(10-kick*.8,-1);ctx.scale(.68,.68);
       drawPickupWeapon(weaponKey,weaponColor);
       ctx.restore();
     }
-    const barW=40,bx=pos.x-barW/2,by=pos.y+jumpOffset-29,maxHp=p.max_hp||100;
-    ctx.fillStyle=ART_TOKENS.deepInk;ctx.fillRect(bx-1,by-1,barW+2,6);ctx.fillStyle='#29382a';ctx.fillRect(bx,by,barW,4);
-    ctx.fillStyle=p.hue||ART_TOKENS.gold;ctx.fillRect(bx,by,barW*Math.max(0,p.hp)/maxHp,4);
+    // --- health + shield bar (shield shown on the bar, slay.one style) ---
+    const barW=46, hpBarH=5, shBarH=3, gap=1;
+    const maxHp=p.max_hp||100, maxArmor=p.max_armor||100;
+    const hpFrac=Math.max(0,Math.min(1,p.hp/maxHp));
+    const armorFrac=Math.max(0,Math.min(1,(p.armor||0)/maxArmor));
+    const hasShield=armorFrac>0.01;
+    const plateH=hpBarH+(hasShield?shBarH+gap:0);
+    const bx=pos.x-barW/2, bottomY=pos.y+jumpOffset-22, by=bottomY-plateH;
+    // backing plate
+    flatRoundRect(bx-2,by-2,barW+4,plateH+4,3,'rgba(7,13,9,.78)',own?'#e7f0a0':'rgba(238,242,224,.55)',1);
+    let yy=by;
+    if(hasShield){
+      ctx.fillStyle='#142d34';ctx.fillRect(bx,yy,barW,shBarH);
+      ctx.fillStyle='#67d4ee';flatRoundRect(bx,yy,barW*armorFrac,shBarH,1.5,'#67d4ee',null);
+      ctx.fillStyle='rgba(208,245,255,.9)';ctx.fillRect(bx,yy,Math.max(0,barW*armorFrac),1);
+      yy+=shBarH+gap;
+    }
+    const hpColor=hpFrac>0.5?'#76dc8c':hpFrac>0.25?'#e9c64a':'#ec6240';
+    ctx.fillStyle='#283a2a';ctx.fillRect(bx,yy,barW,hpBarH);
+    ctx.fillStyle=hpColor;flatRoundRect(bx,yy,barW*hpFrac,hpBarH,2,hpColor,null);
+    // name label
     ctx.fillStyle=ART_TOKENS.paper;ctx.font='9px "DM Mono",monospace';ctx.textAlign='center';
     const label=(p.is_zombie?'✳ ':'')+p.name;ctx.fillText(label,pos.x,pos.y+jumpOffset+34);
     if(own){const width=ctx.measureText(label).width+8;ctx.fillStyle='rgba(17,29,22,.54)';ctx.fillRect(pos.x-width/2,pos.y+jumpOffset+25,width,12);ctx.strokeStyle='#aebd73';ctx.lineWidth=1;ctx.strokeRect(pos.x-width/2,pos.y+jumpOffset+25,width,12);ctx.fillStyle=ART_TOKENS.paper;ctx.fillText(label,pos.x,pos.y+jumpOffset+34)}
@@ -2585,7 +2708,7 @@
   });
   document.querySelectorAll('[data-upgrade]').forEach(button=>button.addEventListener('click',()=>{
     selectUpgrade(button.dataset.upgrade);
-    if(started&&(localPlayer()?.skill_points||0)>0)toast('已选升级，按 Space 确认');
+    if(started&&(localPlayer()?.stat_points??localPlayer()?.skill_points??0)>0)toast('已选升级，按 Space 确认');
   }));
   ui.confirmUpgrade.addEventListener('click',()=>buyUpgrade(selectedUpgrade));
   selectUpgrade(selectedUpgrade);
@@ -2640,6 +2763,11 @@
     if(key===' '&&started)buyUpgrade(selectedUpgrade);
     if(key==='q')send({type:'ability',ability:'shield'});if(key==='e')send({type:'ability',ability:'repair'});
     if('vxc'.includes(key))buyUpgrade({v:'vitality',x:'velocity',c:'amplify'}[key]);
+    if(key==='b')buyUpgrade('regeneration');
+    if(key==='g')buyUpgrade('tenacity');
+    if(key==='t')buyUpgrade('rapid');
+    if(key==='f')buyUpgrade('swift');
+    if(key==='p')buyUpgrade('penetration');
     if(key==='r')send({type:'reload'});
   });
   window.addEventListener('keyup',event=>{const key=event.key.toLowerCase();keys.delete(key);if(key==='tab')document.querySelector('#scoreboard').classList.add('hidden')});

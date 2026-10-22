@@ -468,11 +468,86 @@ def test_projectile_state_contains_render_fields_but_hides_simulation_fields():
     }
 
 
-@pytest.mark.parametrize(("score", "points"), [(0, 0), (199, 0), (200, 1), (450, 2)])
-def test_available_skill_points_reflect_unspent_score(score, points):
-    player = make_player("pilot", score=score)
+def test_stat_points_come_from_levels_and_skill_points_mirror_them():
+    player = make_player("pilot")
     view = arena.player_view(player, "tidal", viewer_id=player.id)
-    assert view["skill_points"] == points
+
+    assert player.level == 1
+    assert player.stat_points == 0
+    assert view["stat_points"] == 0
+    assert view["skill_points"] == 0
+    assert view["level"] == 1
+    assert view["xp"] == 0
+    assert view["xp_to_next"] == 60
+    assert view["xp_start"] == 0
+
+
+def test_granting_xp_raises_the_level_and_hands_out_stat_points():
+    now = time.monotonic()
+    room = arena.Room(code="XP", map_id="tidal", mode="normal")
+    player = make_player("pilot")
+    room.players[player.id] = player
+
+    arena._grant_xp(room, player, arena.xp_for_level(2), now)
+
+    assert player.level == 2
+    assert player.stat_points == arena.STAT_POINTS_PER_LEVEL
+    view = arena.player_view(player, "tidal", player.id)
+    assert view["level"] == 2
+    assert view["stat_points"] == arena.STAT_POINTS_PER_LEVEL
+    assert view["xp_to_next"] == 100
+
+
+def test_bots_and_zombies_never_collect_experience():
+    now = time.monotonic()
+    room = arena.Room(code="XP-BOTS", map_id="tidal", mode="normal")
+    bot = make_player("bot", bot=True)
+    zombie = make_player("zombie", zombie=True)
+    room.players = {bot.id: bot, zombie.id: zombie}
+
+    arena._grant_xp(room, bot, 500, now)
+    arena._grant_xp(room, zombie, 500, now)
+
+    assert bot.xp == 0 and bot.level == 1
+    assert zombie.xp == 0 and zombie.level == 1
+
+
+def test_damage_and_kills_grant_experience():
+    now = time.monotonic()
+    room = arena.Room(code="XP-KILL", map_id="tidal", mode="normal")
+    source = make_player("source")
+    victim = make_player("victim", hp=40)
+    room.players = {source.id: source, victim.id: victim}
+
+    arena._hurt(room, source, victim, 10, now)
+    assert source.xp == pytest.approx(10 * arena.XP_PER_DAMAGE)
+
+    arena._hurt(room, source, victim, 999, now + .1)
+    assert victim.dead_until > now + .1
+    # The overkill damage only grants XP for the health that was really lost
+    # (the pilot had 30 HP left when the killing blow landed).
+    assert source.xp == pytest.approx(10 * arena.XP_PER_DAMAGE + 30 * arena.XP_PER_DAMAGE
+                                     + arena.XP_PER_KILL)
+    assert source.level >= 2
+    assert source.stat_points >= arena.STAT_POINTS_PER_LEVEL
+
+
+def test_every_stat_tier_actually_changes_the_combat_numbers():
+    now = time.monotonic()
+    room = arena.Room(code="STATS", map_id="tidal", mode="normal")
+    player = make_player("pilot")
+    room.players[player.id] = player
+
+    baseline_hp = arena.max_health(player)
+    player.upgrades["vitality"] = 3
+    assert arena.max_health(player) == baseline_hp + 60
+
+    player.upgrades["tenacity"] = 5
+    amount = 100 * max(.4, 1 - 5 * .04)
+    assert amount == pytest.approx(80)
+
+    player.upgrades["amplify"] = 4
+    assert player.upgrades["amplify"] * .12 == pytest.approx(.48)
 
 
 def test_player_view_publishes_remaining_reload_time_only_to_the_owner():
@@ -584,7 +659,7 @@ def test_spectator_join_receives_live_state_without_consuming_a_player_slot():
             assert arena.rooms[room_code].spectator_sockets == {}
 
 
-def test_two_kills_award_one_spendable_skill_point():
+def test_kills_award_experience_instead_of_score_based_skill_points():
     now = time.monotonic()
     room = arena.Room(code="SKILL", map_id="tidal", mode="normal")
     source = make_player("source")
@@ -597,7 +672,11 @@ def test_two_kills_award_one_spendable_skill_point():
 
     view = arena.player_view(source, room.map_id, source.id)
     assert source.score == 200
-    assert view["skill_points"] == 1
+    # Score no longer buys stat points; experience does.
+    assert view["skill_points"] == view["stat_points"]
+    assert source.xp >= arena.XP_PER_KILL * 2
+    assert source.level >= 2
+    assert source.stat_points >= arena.STAT_POINTS_PER_LEVEL
 
 
 @pytest.mark.parametrize(("requested", "expected"), [
@@ -618,7 +697,7 @@ def test_websocket_skin_selection_is_allowlisted(requested, expected):
     assert player["skin"] == expected
 
 
-def test_websocket_upgrade_spends_skill_point_and_broadcasts_state():
+def test_websocket_upgrade_spends_a_stat_point_and_broadcasts_state():
     with TestClient(public_app) as client:
         with client.websocket_connect("/ws/arena") as socket:
             socket.send_json({"type": "join", "name": "UpgradeCheck", "map": "tidal",
@@ -626,7 +705,7 @@ def test_websocket_upgrade_spends_skill_point_and_broadcasts_state():
             welcome = socket.receive_json()
             assert welcome["type"] == "welcome"
             player = arena.rooms[welcome["room"]].players[welcome["id"]]
-            player.score = 200
+            player.stat_points = 1
             socket.send_json({"type": "upgrade", "upgrade": "vitality"})
 
             updated = None
@@ -635,13 +714,36 @@ def test_websocket_upgrade_spends_skill_point_and_broadcasts_state():
                 if message.get("type") != "state":
                     continue
                 current = next(p for p in message["players"] if p["id"] == welcome["id"])
-                if current["skill_points"] == 0 and current["upgrades"]["vitality"] == 1:
+                if current["stat_points"] == 0 and current["upgrades"]["vitality"] == 1:
                     updated = current
                     break
 
     assert updated is not None
-    assert updated["score"] == 0
-    assert updated["hp"] == 125
+    # The stat point is spent, the score is untouched and the pilot now has the
+    # vitality tier: +20 max health and a matching heal on purchase.
+    assert player.stat_points == 0
+    assert updated["max_hp"] == 120
+    assert updated["hp"] == 120
+
+
+def test_websocket_upgrade_is_rejected_without_stat_points():
+    with TestClient(public_app) as client:
+        with client.websocket_connect("/ws/arena") as socket:
+            socket.send_json({"type": "join", "name": "NoPoints", "map": "tidal",
+                              "mode": "duel", "skin": "wayfinder"})
+            welcome = socket.receive_json()
+            player = arena.rooms[welcome["room"]].players[welcome["id"]]
+            player.stat_points = 0
+            socket.send_json({"type": "upgrade", "upgrade": "vitality"})
+
+            for _ in range(12):
+                message = socket.receive_json()
+                if message.get("type") != "state":
+                    continue
+                current = next(p for p in message["players"] if p["id"] == welcome["id"])
+                assert current["upgrades"]["vitality"] == 0
+                break
+    assert player.upgrades["vitality"] == 0
 
 
 def test_lobby_chat_broadcasts_sanitized_names_to_all_lobby_clients():
@@ -798,6 +900,119 @@ def test_grass_visibility_allows_same_patch_and_reveals_attackers_or_damaged_pla
     assert target.cover_exposed_until >= now + .2 + arena.COVER_EXPOSURE_SECONDS
     damaged_view = arena.player_view(target, "tidal", outside.id, now + .3, outside)
     assert damaged_view["hidden"] is False
+
+
+def test_visibility_between_two_pilots_is_symmetric():
+    """If A can see B then B must be able to see A as well."""
+    now = time.monotonic()
+    patch = arena.MAPS["tidal"]["cover"][0]
+    hidden = make_player("hidden", x=patch[0] + patch[2] / 2, y=patch[1] + patch[3] / 2)
+    open_field = make_player("open", x=1800, y=1800)
+
+    hidden_from_open = arena.player_view(hidden, "tidal", open_field.id, now, open_field)
+    open_from_hidden = arena.player_view(open_field, "tidal", hidden.id, now, hidden)
+
+    # The pilot inside the grass is concealed, so neither side gets a free look.
+    assert hidden_from_open["hidden"] is True
+    assert open_from_hidden["hidden"] is True
+    assert hidden_from_open["x"] is None
+    assert open_from_hidden["x"] is None
+
+
+def test_visibility_is_symmetric_for_two_pilots_in_different_grass_patches():
+    now = time.monotonic()
+    cover = arena.MAPS["tidal"]["cover"]
+    first = make_player("first", x=cover[0][0] + 10, y=cover[0][1] + 10)
+    second = make_player("second", x=cover[1][0] + 10, y=cover[1][1] + 10)
+
+    first_sees_second = arena.player_view(second, "tidal", first.id, now, first)
+    second_sees_first = arena.player_view(first, "tidal", second.id, now, second)
+
+    assert first_sees_second["hidden"] is second_sees_first["hidden"] is True
+
+
+def test_visibility_is_symmetric_once_one_pilot_fires():
+    now = time.monotonic()
+    room = arena.Room(code="SYMMETRIC-FIRE", map_id="tidal")
+    patch = arena.MAPS["tidal"]["cover"][0]
+    hidden = make_player("hidden", x=patch[0] + patch[2] / 2, y=patch[1] + patch[3] / 2)
+    open_field = make_player("open", x=1800, y=1800)
+    room.players = {hidden.id: hidden, open_field.id: open_field}
+
+    hidden.aim_x, hidden.aim_y = open_field.x, open_field.y
+    hidden.firing = True
+    arena._spawn_projectile(room, hidden, now)
+
+    # Firing clears the concealment, and now both pilots can see each other.
+    hidden_from_open = arena.player_view(hidden, "tidal", open_field.id, now + .1, open_field)
+    open_from_hidden = arena.player_view(open_field, "tidal", hidden.id, now + .1, hidden)
+    assert hidden_from_open["hidden"] is False
+    assert open_from_hidden["hidden"] is False
+    assert open_from_hidden["x"] == round(open_field.x, 1)
+
+
+def test_a_dead_pilot_leaves_a_corpse_on_the_death_spot():
+    now = time.monotonic()
+    room = arena.Room(code="CORPSE", map_id="tidal", mode="normal")
+    source = make_player("source")
+    victim = make_player("victim", x=OPEN_X, y=OPEN_Y, hp=1)
+    room.players = {source.id: source, victim.id: victim}
+    death_x, death_y = victim.x, victim.y
+
+    arena._hurt(room, source, victim, 50, now)
+
+    # The body is not teleported away: it holds the exact spot where it fell.
+    assert victim.x == death_x
+    assert victim.y == death_y
+    assert victim.dead_until == pytest.approx(now + arena.RESPAWN_DELAY)
+    assert victim.death_at == pytest.approx(now)
+
+    view = arena.player_view(victim, "tidal", source.id, now + .5, source)
+    assert view["dead"] is True
+    assert view["dead_for"] == pytest.approx(.5, abs=.05)
+    assert view["respawn_in"] > 0
+    assert view["x"] == round(death_x, 1)
+
+    # The body is always readable, even when it fell inside grass.
+    room.map_id = "tidal"
+    quiet = make_player("quiet", x=OPEN_X, y=OPEN_Y)
+    room.players[quiet.id] = quiet
+    arena._hurt(room, source, victim, 50, now + 1) if victim.hp > 0 else None
+    assert arena.player_view(victim, "tidal", quiet.id, now + .6, quiet)["hidden"] is False
+
+
+def test_a_dead_pilot_respawns_on_a_fresh_legal_spot():
+    now = time.monotonic()
+    room = arena.Room(code="RESPAWN", map_id="tidal", mode="normal")
+    victim = make_player("victim", x=OPEN_X, y=OPEN_Y)
+    room.players = {victim.id: victim}
+    victim.dead_until = now + .05
+    victim.death_at = now - 1
+    death_x, death_y = victim.x, victim.y
+
+    arena._respawn_player(room, victim, now + .2)
+
+    assert victim.dead_until == 0
+    assert victim.death_at == 0
+    assert victim.hp == arena.max_health(victim)
+    # The corpse is gone and the pilot re-materialised somewhere else.
+    assert (victim.x, victim.y) != (death_x, death_y)
+    assert not arena.collides("tidal", victim.x, victim.y, 20)
+
+
+def test_falling_into_the_water_leaves_a_corpse_instead_of_teleporting():
+    now = time.monotonic()
+    room = arena.Room(code="WATER", map_id="glass")
+    player = make_player("pilot", x=1200, y=1320)
+    player.knockback_y = 1000
+    player.knockback_until = now + 1
+    room.players[player.id] = player
+
+    arena._move_player(room, player, .1, now)
+
+    assert player.dead_until > now
+    assert player.death_at > 0
+    assert any("fell into the river" in item["content"] for item in room.feed)
 
 
 @pytest.mark.parametrize("weapon_key", [
