@@ -1,8 +1,1 @@
-<?xml version='1.0' encoding='utf-8'?>
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="72" viewBox="0 0 120 72" shape-rendering="crispEdges"><rect x="13" y="29" width="76" height="14" fill="#14211c" />
-      <rect x="17" y="25" width="52" height="12" fill="#55e7d1" />
-      <rect x="27" y="37" width="25" height="11" fill="#297f86" />
-      <rect x="69" y="29" width="36" height="8" fill="#75f1df" />
-      <rect x="96" y="31" width="16" height="4" fill="#fff5c7" />
-      <rect x="30" y="22" width="14" height="4" fill="#e3fff2" />
-    </svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="72" viewBox="0 0 120 72" shape-rendering="geometricPrecision"><rect x="18" y="28" width="70" height="20" rx="8" fill="#5ce1e6" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/><rect x="24" y="31" width="44" height="7" rx="3.5" fill="#d6fbff"/><rect x="84" y="32" width="26" height="12" rx="6" fill="#2f9aa8" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/><rect x="106" y="35" width="10" height="6" rx="3" fill="#d6fbff"/><rect x="44" y="46" width="20" height="16" rx="6" fill="#2f9aa8" stroke="#1b2438" stroke-width="4.5" stroke-linejoin="round"/></svg>

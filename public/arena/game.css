@@ -154,3 +154,263 @@ kbd,.key{border:1px solid #9ba17d;border-bottom-width:2px;border-radius:2px;padd
 /* Type scale update: make in-match and lobby copy easier to scan. */
 body{font-size:14px}.brand{font-size:15px}.match-state{font-size:13px}.match-state strong{font-size:15px}.quiet-button{font-size:13px}.hud-label{font-size:12px}.hud small{font-size:12px}.minimap-heading,.mini-row{font-size:12px}.weapon-copy small{font-size:11px}.ability b{font-size:12px}.ability small{font-size:11px}.upgrade-points{font-size:10px}.upgrade-box button{font-size:11px}.intro-tag{font-size:11px}.eyebrow{font-size:12px}.intro-copy{font-size:14px}.lobby-fields label{font-size:12px}.lobby-fields input{font-size:13px}.mode-section,.mode-heading{font-size:12px}.mode-heading small{font-size:11px}.mode-card b{font-size:11px}.mode-card small{font-size:10px}.map-picker button b{font-size:11px}.map-picker button small{font-size:10px}.start-button{font-size:14px}.lobby-actions small{font-size:12px}.rooms-heading,.rooms-heading button{font-size:12px}.room-card{font-size:12px}.room-card small{font-size:11px}.empty-rooms{font-size:12px}.lobby-chat-heading{font-size:11px}.lobby-chat-line{font-size:11px}.lobby-chat-empty{font-size:11px}.lobby-chat-form input,.lobby-chat-form button{font-size:11px}.lobby-network{font-size:12px}.network-kicker{font-size:11px}.network-kicker b{font-size:11px}.lobby-network p{font-size:12px}.control-hint{font-size:11px}.copy-room{font-size:11px}.score-row{font-size:12px}.feed-item{font-size:11px}.toast{font-size:12px}.game-footer{font-size:11px}
 @media(max-width:760px){body{font-size:12px}.brand{font-size:11px}.match-state{font-size:10px}.match-state strong{font-size:12px}.quiet-button{font-size:10px}.hud-label{font-size:9px}.hud small{font-size:9px}.minimap-heading,.mini-row{font-size:9px}.weapon-copy small{font-size:9px}.ability b{font-size:10px}.ability small{font-size:9px}.intro-tag{font-size:10px}.eyebrow{font-size:10px}.intro-copy{font-size:11px}.lobby-fields label{font-size:10px}.lobby-fields input{font-size:11px}.mode-section,.mode-heading{font-size:10px}.mode-heading small{font-size:9px}.mode-card b{font-size:10px}.mode-card small{font-size:9px}.map-picker button b{font-size:10px}.map-picker button small{font-size:9px}.start-button{font-size:13px}.lobby-actions small{font-size:10px}.rooms-heading,.rooms-heading button{font-size:10px}.room-card{font-size:10px}.room-card small{font-size:9px}.empty-rooms{font-size:10px}.lobby-chat-heading{font-size:10px}.lobby-chat-line{font-size:9px}.lobby-chat-empty{font-size:9px}.lobby-chat-form input,.lobby-chat-form button{font-size:9px}.lobby-network{font-size:10px}.network-kicker{font-size:9px}.network-kicker b{font-size:9px}.lobby-network p{font-size:10px}.control-hint{font-size:9px}.copy-room{font-size:9px}.score-row{font-size:10px}.feed-item{font-size:9px}.toast{font-size:10px}.game-footer{font-size:9px}}
+
+/* --------------------------------------------------------------------------
+   Lobby · stone-frame console
+   A dark masonry console floating over the field: thick bevelled frame, rivet
+   band, olive-gold actions. Slay.one's menu grammar (stone panel + metal tabs
+   + one warm action colour), rebuilt with our own proportions and palette.
+   -------------------------------------------------------------------------- */
+.overlay{background:radial-gradient(120% 90% at 50% 40%,rgba(8,14,12,.28),rgba(6,10,9,.72))}
+.lobby-card{
+  position:relative;
+  background:
+    linear-gradient(180deg,#262c31 0%,#1d2227 34%,#191d21 100%);
+  border:3px solid #4d555d;
+  outline:2px solid #0d1013;outline-offset:3px;
+  border-radius:2px;
+  box-shadow:
+    inset 0 0 0 2px #12171a,
+    inset 0 3px 0 rgba(255,255,255,.05),
+    inset 0 -3px 0 rgba(0,0,0,.45),
+    9px 9px 0 rgba(6,9,11,.75),
+    0 26px 60px rgba(0,0,0,.55);
+  padding:26px 24px 22px;
+}
+/* Rivet band along the top and bottom rails. */
+.lobby-card::before,.lobby-card::after{
+  content:"";position:absolute;left:14px;right:14px;height:7px;pointer-events:none;
+  background-image:radial-gradient(circle at 3.5px 3.5px,#6c757e 1.9px,#2b3238 2.1px,transparent 2.6px);
+  background-size:26px 7px;background-repeat:repeat-x;opacity:.85;
+}
+.lobby-card::before{top:5px}
+.lobby-card::after{bottom:5px;transform:rotate(180deg)}
+.lobby-card>.intro-tag{color:#9aa4ad;letter-spacing:2px}
+.lobby-card>.intro-tag i{background:#8d9a6a;box-shadow:0 0 6px #8d9a6a}
+.overlay .eyebrow{color:#c9b979;letter-spacing:2.5px}
+.overlay h1{color:#eef2e4;text-shadow:0 3px 0 #0b0f12,0 0 22px rgba(216,192,106,.16)}
+.overlay h1 em{color:#e6cd74;font-style:normal;text-shadow:0 3px 0 #463312}
+.intro-copy{color:#b9c1c6}
+/* Fields: recessed slots, not flat boxes. */
+.lobby-fields input{
+  background:#111619;border:2px solid #39434b;border-radius:2px;color:#f2e9c8;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.05);
+}
+.lobby-fields input:focus{border-color:#c9b979;box-shadow:inset 0 2px 6px rgba(0,0,0,.6),0 0 0 2px rgba(201,185,121,.18)}
+.skin-cycle{background:#20262a;border:2px solid #3d464d;border-radius:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+/* Section headings read as engraved labels. */
+.mode-heading,.rooms-heading,.lobby-chat-heading{
+  color:#d8c06a;letter-spacing:2px;text-transform:uppercase;
+  border-bottom:1px solid #3a4249;padding-bottom:4px;
+}
+.mode-heading small,.rooms-heading button,.lobby-chat-heading small{color:#8e9aa1;letter-spacing:1px}
+/* Mode tabs: metal keys, the selected one is lit from inside. */
+.mode-card,.map-picker button{
+  background:linear-gradient(180deg,#2b3238,#20262a);
+  border:2px solid #3f484f;border-radius:2px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 2px 0 rgba(0,0,0,.5);
+  transition:transform .08s ease,border-color .12s ease,background .12s ease;
+}
+.mode-card:hover,.map-picker button:hover{border-color:#7d8a6a;background:linear-gradient(180deg,#333b41,#252c31);transform:translateY(-1px)}
+.mode-card.active,.map-picker button.active{
+  border-color:#cdb45f;
+  background:linear-gradient(180deg,#3a4030,#2b3126);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.55),0 0 0 1px rgba(205,180,95,.25),0 2px 0 rgba(0,0,0,.5);
+}
+.mode-card.active b,.map-picker button.active b{color:#f2e2a4}
+.mode-mark{background:#12171a;border:1px solid #454f56;color:#cdb45f}
+.mode-card.active .mode-mark{background:#4a4222;border-color:#cdb45f;color:#ffe9a8}
+/* Right column: a recessed stone tray. */
+.open-rooms{
+  background:linear-gradient(180deg,#151a1d,#12171a);
+  border:2px solid #333c43;border-radius:2px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.6);
+  padding:9px 10px 7px;
+}
+.lobby-chat{background:#101518;border:2px solid #333c43;border-radius:2px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6)}
+.room-card{background:#1c2226;border:1px solid #39434a;border-radius:2px}
+.room-card:hover{border-color:#cdb45f;background:#232a2b}
+.lobby-chat-form input{background:#0d1215;border:2px solid #333c43;border-radius:2px;color:#eee6c6}
+/* Actions: one warm colour only. */
+.start-button{
+  background:linear-gradient(180deg,#d3b055,#a2852f);
+  border:2px solid #f0dfa4;border-radius:2px;color:#231b0c;
+  letter-spacing:.06em;text-transform:uppercase;
+  box-shadow:inset 0 2px 0 #ffe9b0,inset 0 -3px 0 rgba(0,0,0,.28),0 4px 0 #4a3a16,0 7px 14px rgba(0,0,0,.45);
+}
+.start-button:hover{background:linear-gradient(180deg,#e0bf68,#b0942f);transform:translateY(-1px);box-shadow:inset 0 2px 0 #ffe9b0,inset 0 -3px 0 rgba(0,0,0,.28),0 5px 0 #4a3a16,0 9px 16px rgba(0,0,0,.5)}
+.start-button:active{transform:translateY(3px);box-shadow:inset 0 2px 6px rgba(0,0,0,.45),0 1px 0 #4a3a16}
+.watch-button{
+  background:linear-gradient(180deg,#333c42,#262d32);border:2px solid #586067;border-radius:2px;color:#e6ddb6;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 3px 0 #14191c;
+}
+.watch-button:hover{border-color:#cdb45f;background:linear-gradient(180deg,#3c453f,#2c332c)}
+.lobby-actions small{color:#98a3a9}
+.control-hint{color:#8f9aa0}
+.lobby-network{border-top:1px solid #39434a}
+.lobby-network p{color:#9aa5ab}
+.network-kicker{color:#d8c06a;letter-spacing:2px}
+.lobby-stats span{background:#141a1d;border:1px solid #38424a;border-radius:2px;box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+.lobby-stats strong{color:#e6cd74}
+@media(max-width:760px){
+  .lobby-card{padding:20px 14px 16px;box-shadow:6px 6px 0 rgba(6,9,11,.75),0 14px 30px rgba(0,0,0,.5)}
+  .lobby-card::before,.lobby-card::after{left:8px;right:8px}
+}
+
+/* --------------------------------------------------------------------------
+   Lobby · stone-frame console
+   A dark masonry console floating over the field: thick bevelled frame, rivet
+   band, olive-gold actions. Slay.one's menu grammar (stone panel + metal tabs
+   + one warm action colour), rebuilt with our own proportions and palette.
+   -------------------------------------------------------------------------- */
+.overlay{background:radial-gradient(120% 90% at 50% 40%,rgba(8,14,12,.28),rgba(6,10,9,.72))}
+.lobby-card{
+  position:relative;
+  background:
+    linear-gradient(180deg,#262c31 0%,#1d2227 34%,#191d21 100%);
+  border:3px solid #4d555d;
+  outline:2px solid #0d1013;outline-offset:3px;
+  border-radius:2px;
+  box-shadow:
+    inset 0 0 0 2px #12171a,
+    inset 0 3px 0 rgba(255,255,255,.05),
+    inset 0 -3px 0 rgba(0,0,0,.45),
+    9px 9px 0 rgba(6,9,11,.75),
+    0 26px 60px rgba(0,0,0,.55);
+  padding:26px 24px 22px;
+}
+/* Rivet band along the top and bottom rails. */
+.lobby-card::before,.lobby-card::after{
+  content:"";position:absolute;left:14px;right:14px;height:7px;pointer-events:none;
+  background-image:radial-gradient(circle at 3.5px 3.5px,#6c757e 1.9px,#2b3238 2.1px,transparent 2.6px);
+  background-size:26px 7px;background-repeat:repeat-x;opacity:.85;
+}
+.lobby-card::before{top:5px}
+.lobby-card::after{bottom:5px;transform:rotate(180deg)}
+.lobby-card>.intro-tag{color:#9aa4ad;letter-spacing:2px}
+.lobby-card>.intro-tag i{background:#8d9a6a;box-shadow:0 0 6px #8d9a6a}
+.overlay .eyebrow{color:#c9b979;letter-spacing:2.5px}
+.overlay h1{color:#eef2e4;text-shadow:0 3px 0 #0b0f12,0 0 22px rgba(216,192,106,.16)}
+.overlay h1 em{color:#e6cd74;font-style:normal;text-shadow:0 3px 0 #463312}
+.intro-copy{color:#b9c1c6}
+/* Fields: recessed slots, not flat boxes. */
+.lobby-fields input{
+  background:#111619;border:2px solid #39434b;border-radius:2px;color:#f2e9c8;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.05);
+}
+.lobby-fields input:focus{border-color:#c9b979;box-shadow:inset 0 2px 6px rgba(0,0,0,.6),0 0 0 2px rgba(201,185,121,.18)}
+.skin-cycle{background:#20262a;border:2px solid #3d464d;border-radius:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+/* Section headings read as engraved labels. */
+.mode-heading,.rooms-heading,.lobby-chat-heading{
+  color:#d8c06a;letter-spacing:2px;text-transform:uppercase;
+  border-bottom:1px solid #3a4249;padding-bottom:4px;
+}
+.mode-heading small,.rooms-heading button,.lobby-chat-heading small{color:#8e9aa1;letter-spacing:1px}
+/* Mode tabs: metal keys, the selected one is lit from inside. */
+.mode-card,.map-picker button{
+  background:linear-gradient(180deg,#2b3238,#20262a);
+  border:2px solid #3f484f;border-radius:2px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 2px 0 rgba(0,0,0,.5);
+  transition:transform .08s ease,border-color .12s ease,background .12s ease;
+}
+.mode-card:hover,.map-picker button:hover{border-color:#7d8a6a;background:linear-gradient(180deg,#333b41,#252c31);transform:translateY(-1px)}
+.mode-card.active,.map-picker button.active{
+  border-color:#cdb45f;
+  background:linear-gradient(180deg,#3a4030,#2b3126);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.55),0 0 0 1px rgba(205,180,95,.25),0 2px 0 rgba(0,0,0,.5);
+}
+.mode-card.active b,.map-picker button.active b{color:#f2e2a4}
+.mode-mark{background:#12171a;border:1px solid #454f56;color:#cdb45f}
+.mode-card.active .mode-mark{background:#4a4222;border-color:#cdb45f;color:#ffe9a8}
+/* Right column: a recessed stone tray. */
+.open-rooms{
+  background:linear-gradient(180deg,#151a1d,#12171a);
+  border:2px solid #333c43;border-radius:2px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.6);
+  padding:9px 10px 7px;
+}
+.lobby-chat{background:#101518;border:2px solid #333c43;border-radius:2px;box-shadow:inset 0 2px 10px rgba(0,0,0,.6)}
+.room-card{background:#1c2226;border:1px solid #39434a;border-radius:2px}
+.room-card:hover{border-color:#cdb45f;background:#232a2b}
+.lobby-chat-form input{background:#0d1215;border:2px solid #333c43;border-radius:2px;color:#eee6c6}
+/* Actions: one warm colour only. */
+.start-button{
+  background:linear-gradient(180deg,#d3b055,#a2852f);
+  border:2px solid #f0dfa4;border-radius:2px;color:#231b0c;
+  letter-spacing:.06em;text-transform:uppercase;
+  box-shadow:inset 0 2px 0 #ffe9b0,inset 0 -3px 0 rgba(0,0,0,.28),0 4px 0 #4a3a16,0 7px 14px rgba(0,0,0,.45);
+}
+.start-button:hover{background:linear-gradient(180deg,#e0bf68,#b0942f);transform:translateY(-1px);box-shadow:inset 0 2px 0 #ffe9b0,inset 0 -3px 0 rgba(0,0,0,.28),0 5px 0 #4a3a16,0 9px 16px rgba(0,0,0,.5)}
+.start-button:active{transform:translateY(3px);box-shadow:inset 0 2px 6px rgba(0,0,0,.45),0 1px 0 #4a3a16}
+.watch-button{
+  background:linear-gradient(180deg,#333c42,#262d32);border:2px solid #586067;border-radius:2px;color:#e6ddb6;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 3px 0 #14191c;
+}
+.watch-button:hover{border-color:#cdb45f;background:linear-gradient(180deg,#3c453f,#2c332c)}
+.lobby-actions small{color:#98a3a9}
+.control-hint{color:#8f9aa0}
+.lobby-network{border-top:1px solid #39434a}
+.lobby-network p{color:#9aa5ab}
+.network-kicker{color:#d8c06a;letter-spacing:2px}
+.lobby-stats span{background:#141a1d;border:1px solid #38424a;border-radius:2px;box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+.lobby-stats strong{color:#e6cd74}
+@media(max-width:760px){
+  .lobby-card{padding:20px 14px 16px;box-shadow:6px 6px 0 rgba(6,9,11,.75),0 14px 30px rgba(0,0,0,.5)}
+  .lobby-card::before,.lobby-card::after{left:8px;right:8px}
+}
+
+/* Lobby pass 2: masonry courses, title plaque, tighter chat tray. */
+.lobby-card{
+  background-image:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 34px),
+    repeating-linear-gradient(90deg,rgba(0,0,0,.10) 0 1px,transparent 1px 68px),
+    linear-gradient(180deg,#262c31 0%,#1d2227 34%,#191d21 100%);
+}
+.lobby-card::before,.lobby-card::after{
+  background-image:radial-gradient(circle at 4px 3.5px,#78828c 2.1px,#2a3137 2.3px,transparent 2.9px);
+  background-size:28px 7px;opacity:.95;
+}
+/* The title sits on its own engraved plaque. */
+.overlay h1{
+  position:relative;margin-top:10px;padding:10px 0 12px 14px;
+  border-left:4px solid #cdb45f;
+  background:linear-gradient(90deg,rgba(205,180,95,.10),rgba(205,180,95,0) 72%);
+}
+.overlay h1::after{
+  content:"";position:absolute;left:14px;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,#5a5240,rgba(90,82,64,0));
+}
+.overlay .eyebrow{margin-top:6px}
+.lobby-chat{max-height:190px}
+.lobby-chat-list{min-height:60px}
+.lobby-chat-empty{color:#6f7a80}
+.lobby-network p{line-height:1.55}
+@media(max-width:760px){.overlay h1{padding-left:10px;border-left-width:3px}}
+
+/* Lobby pass 2: masonry courses, title plaque, tighter chat tray. */
+.lobby-card{
+  background-image:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 34px),
+    repeating-linear-gradient(90deg,rgba(0,0,0,.10) 0 1px,transparent 1px 68px),
+    linear-gradient(180deg,#262c31 0%,#1d2227 34%,#191d21 100%);
+}
+.lobby-card::before,.lobby-card::after{
+  background-image:radial-gradient(circle at 4px 3.5px,#78828c 2.1px,#2a3137 2.3px,transparent 2.9px);
+  background-size:28px 7px;opacity:.95;
+}
+/* The title sits on its own engraved plaque. */
+.overlay h1{
+  position:relative;margin-top:10px;padding:10px 0 12px 14px;
+  border-left:4px solid #cdb45f;
+  background:linear-gradient(90deg,rgba(205,180,95,.10),rgba(205,180,95,0) 72%);
+}
+.overlay h1::after{
+  content:"";position:absolute;left:14px;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,#5a5240,rgba(90,82,64,0));
+}
+.overlay .eyebrow{margin-top:6px}
+.lobby-chat{max-height:190px}
+.lobby-chat-list{min-height:60px}
+.lobby-chat-empty{color:#6f7a80}
+.lobby-network p{line-height:1.55}
+@media(max-width:760px){.overlay h1{padding-left:10px;border-left-width:3px}}
