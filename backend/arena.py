@@ -39,8 +39,9 @@ PROJECTILE_FLOAT_FIELDS = frozenset({
 PLAYER_DYNAMIC_VIEW_FIELDS = frozenset({
     "id", "x", "y", "angle", "hp", "weapon", "alternate_fire",
     "skill_points", "max_hp", "armor", "max_armor", "score", "kills", "deaths", "shielded",
-    "jumping", "dead", "respawn_in", "invincible", "hidden", "lives",
+    "jumping", "dead", "dead_for", "respawn_in", "invincible", "hidden", "lives",
     "cover_exposed", "captures", "souls", "carried_flag", "switch_remaining", "knocked",
+    "level", "xp", "xp_to_next", "xp_start", "stat_points",
 })
 ROOM_CAPACITIES = {
     "normal": 20,
@@ -51,7 +52,7 @@ ROOM_CAPACITIES = {
     "zombie_coop": 24,
 }
 MAX_PLAYERS = max(ROOM_CAPACITIES.values())
-RESPAWN_DELAY = 7.0
+RESPAWN_DELAY = 6.0
 SPAWN_INVINCIBILITY = 5.0
 ITEM_RESPAWN = 45.0
 RESOURCE_RESPAWN = 38.0
@@ -932,7 +933,6 @@ WEAPONS = {
             "clip": 1, "reserve": 6, "pickup": 6, "ammo_size": 6,
             "reload": 65 / 20, "movement_modifier": .975},
 }
-UPGRADES = {"vitality", "velocity", "amplify"}
 RESOURCE_ITEMS = {
     "health": {"name": "Field Medkit", "label": "血包", "amount": 35, "color": "#e66f70"},
     "armor": {"name": "Bark Armor", "label": "护甲", "amount": 40, "color": "#73b9cf"},
@@ -948,6 +948,70 @@ MODES = {
 PLAYER_COLORS = ["#73e5ce", "#f38b67", "#c49aff", "#e9c56d", "#83b7f7",
                  "#e58db1", "#a8d878", "#ef977e", "#80d2df", "#d5a4ea"]
 PLAYER_SKINS = {"wayfinder", "orchard", "ember", "gear"}
+# ---------------------------------------------------------------------------
+# diep.io-style progression
+# ---------------------------------------------------------------------------
+# Eight upgradeable stats, each tier 0..MAX_TIER. Players earn experience (XP)
+# from combat and level up; every level grants spendable stat points that can
+# be poured into any of the eight stats. The three legacy stats
+# (vitality/velocity/amplify) keep their old combat meaning and are simply
+# joined by five new ones.
+#
+# Growth rules (one tier = one point):
+#   vitality    +20 max HP            ->  100 .. 260 HP
+#   velocity    +16 move speed        ->  192 .. 320 px/s
+#   amplify     +12% bullet damage    ->  x1.00 .. x1.96
+#   regeneration+0.6 HP/s self regen  ->  0 .. 4.8 HP/s
+#   tenacity    -4% incoming damage   ->  -0% .. -32%
+#   rapid       -6% fire cooldown     ->  x1.00 .. x0.52 (and -8% reload)
+#   swift       -0.18s dash cooldown  ->  1.80 .. 0.36 s
+#   penetration +1 pierce per bullet  ->  0 .. 8 extra targets
+UPGRADES = {"vitality", "velocity", "amplify", "regeneration", "tenacity",
+            "rapid", "swift", "penetration"}
+MAX_TIER = 8
+MAX_LEVEL = 28
+# Stat points granted per level. 28 levels x 2 = 54 points against a 64 point
+# maximum, so a focused build can max out and a spread build still has to
+# choose what to give up.
+STAT_POINTS_PER_LEVEL = 2
+# Experience awarded to the *source* pilot.
+XP_PER_DAMAGE = 0.6
+XP_PER_KILL = 120
+XP_PER_CAPTURE = 150
+# XP required to climb FROM level ``L`` to ``L+1``. The step grows by 40 each
+# level so early levels are quick and the late game is a real grind.
+def _xp_to_next(level):
+    return 60 + (level - 1) * 40
+def xp_for_level(level):
+    """Cumulative XP required to *be* at ``level`` (level 1 == 0 XP)."""
+    return sum(_xp_to_next(l) for l in range(1, level))
+def level_for_xp(xp):
+    level = 1
+    while level < MAX_LEVEL and xp >= xp_for_level(level + 1):
+        level += 1
+    return level
+def max_health(player: "Player"):
+    """Maximum HP for a pilot, accounting for the vitality stat."""
+    if player.is_zombie:
+        return 140
+    return 100 + player.upgrades.get("vitality", 0) * 20
+def _grant_xp(room: "Room", player: "Player", amount, now: float):
+    """Award experience and promote the player when the cumulative total crosses
+    a level threshold. Only human pilots progress; bots and zombified players
+    stay at level 1 so match balance is unaffected. Leveling heals to full, a la
+    diep.io, so a promotion always feels rewarding."""
+    if player.is_bot or player.is_zombie or amount <= 0:
+        return
+    player.xp += amount
+    new_level = level_for_xp(player.xp)
+    if new_level > player.level:
+        # Compute the delta BEFORE overwriting ``player.level`` otherwise the
+        # difference is always zero and no stat points are ever handed out.
+        gained = new_level - player.level
+        player.level = new_level
+        player.stat_points += gained * STAT_POINTS_PER_LEVEL
+        player.hp = max_health(player)
+        add_feed(room, f"{player.name} 升到 {new_level} 级")
 @dataclass
 class Player:
     id: str
@@ -961,11 +1025,16 @@ class Player:
     energy: float = START_ENERGY
     weapon: str = "pulse"
     owned_weapons: set = field(default_factory=lambda: {"pulse"})
-    upgrades: dict = field(default_factory=lambda: {"vitality": 0, "velocity": 0, "amplify": 0})
+    upgrades: dict = field(default_factory=lambda: {key: 0 for key in (
+        "vitality", "velocity", "amplify", "regeneration",
+        "tenacity", "rapid", "swift", "penetration")})
     ammo: dict = field(default_factory=dict)
     score: int = 0
     kills: int = 0
     deaths: int = 0
+    xp: int = 0
+    level: int = 1
+    stat_points: int = 0
     is_bot: bool = False
     team: int = 0
     is_zombie: bool = False
@@ -998,6 +1067,10 @@ class Player:
     bot_next_think: float = 0
     cover_exposed_until: float = 0
     dead_until: float = 0
+    # Where and how the pilot fell. The body stays on that spot for the whole
+    # respawn window; these two fields drive the client-side topple animation.
+    death_at: float = 0
+    corpse_angle: float = 0
     invincible_until: float = field(default_factory=lambda: time.monotonic() + SPAWN_INVINCIBILITY)
     switch_until: float = 0
     portal_cooldown_until: float = 0
@@ -1076,17 +1149,46 @@ def cover_index(map_id: str, x: float, y: float):
     return None
 
 
+def _pair_visibility(first: Player, second: Player, map_id: str, now: float) -> bool:
+    """Return whether two pilots can see each other.
+
+    The relation is deliberately **symmetric**: if A can see B then B can see A
+    as well. Any asymmetric concealment would let a pilot stalk somebody from
+    the grass while remaining invisible in return, which breaks the fairness of
+    the whole grass mechanic.
+
+    Rules:
+      * Two pilots sharing the same grass patch always see each other.
+      * A pilot standing in grass is concealed while they stay hidden; firing
+        or taking damage clears the concealment for a few seconds.
+      * Concealment applies to the *pair*: if either side is concealed, the two
+        cannot see each other at all, so neither gets a free look.
+    """
+    if first is None or second is None or first.id == second.id:
+        return True
+    first_patch = cover_index(map_id, first.x, first.y)
+    second_patch = cover_index(map_id, second.x, second.y)
+    if first_patch is not None and first_patch == second_patch:
+        return True
+    first_concealed = first_patch is not None and first.cover_exposed_until <= now
+    second_concealed = second_patch is not None and second.cover_exposed_until <= now
+    return not first_concealed and not second_concealed
+
+
 def _player_concealed(player: Player, map_id: str, viewer_id: str | None,
                       viewer: Player | None, now: float):
-    if not in_cover(map_id, player.x, player.y) or player.id == viewer_id:
+    if player.id == viewer_id:
         return False
-    # Firing or taking damage briefly breaks the grass concealment. The
-    # timestamp lives on the server so every client sees the same reveal.
-    if player.cover_exposed_until > now:
+    # A downed pilot is a corpse on the ground, not a hidden target.
+    if player.dead_until > now:
         return False
-    if viewer and cover_index(map_id, viewer.x, viewer.y) == cover_index(map_id, player.x, player.y):
+    if viewer is not None:
+        return not _pair_visibility(player, viewer, map_id, now)
+    # Without a concrete viewer (spectator / coarse shared snapshot) fall back
+    # to the pilot's own concealment state.
+    if not in_cover(map_id, player.x, player.y):
         return False
-    return True
+    return player.cover_exposed_until <= now
 
 
 def _inside_region(x: float, y: float, region, radius: float = 0):
@@ -1321,7 +1423,7 @@ def player_view(player: Player, map_id: str, viewer_id: str | None = None,
     hidden = in_cover(map_id, player.x, player.y)
     concealed = _player_concealed(player, map_id, viewer_id, viewer, now)
     owner_view = player.id == viewer_id
-    maximum_hp = 140 if player.is_zombie else 100 + player.upgrades["vitality"] * 20
+    maximum_hp = max_health(player)
     ammo = None
     if player.id == viewer_id:
         ammo = {
@@ -1335,7 +1437,12 @@ def player_view(player: Player, map_id: str, viewer_id: str | None = None,
         "angle": None if concealed else round(math.atan2(player.aim_y - player.y, player.aim_x - player.x), 3),
         "hue": player.hue, "skin": player.skin, "hp": player.hp, "weapon": player.weapon,
         "alternate_fire": player.alternate_fire,
-        "skill_points": max(0, player.score // 200),
+        "skill_points": player.stat_points,
+        "stat_points": player.stat_points,
+        "level": player.level,
+        "xp": player.xp,
+        "xp_to_next": _xp_to_next(player.level),
+        "xp_start": xp_for_level(player.level),
         "max_hp": maximum_hp, "armor": player.armor, "max_armor": 100,
         "upgrades": player.upgrades if owner_view else None,
         "score": player.score, "kills": player.kills,
@@ -1345,6 +1452,8 @@ def player_view(player: Player, map_id: str, viewer_id: str | None = None,
         "jumping": player.jump_until > now,
         "knocked": player.knockback_until > now,
         "dead": player.dead_until > now,
+        "dead_for": round(max(0, now - player.death_at), 2) if player.death_at else 0,
+        "corpse_angle": round(player.corpse_angle, 3) if player.death_at else None,
         "respawn_in": max(0, round(player.dead_until - now, 1)),
         "invincible": player.invincible_until > now,
         # ``hidden`` is viewer-relative for rendering. Keep ``in_cover`` and
@@ -1668,12 +1777,13 @@ def _fall_into_water(room: Room, player: Player, now: float):
     _reset_player_loadout(player)
     player.hp = 0
     player.dead_until = now + RESPAWN_DELAY
+    player.death_at = now
+    player.corpse_angle = math.atan2(player.aim_y - player.y, player.aim_x - player.x)
     player.invincible_until = 0
     player.knockback_x = player.knockback_y = 0
     player.knockback_until = 0
     player.knockback_source = None
     player.firing = False
-    player.x, player.y = safe_spawn(room.map_id, [p for p in room.players.values() if p.id != player.id])
     player.portal_cooldown_until = 0
     add_feed(room, player.name + " fell into the river")
 
@@ -1709,7 +1819,7 @@ def _move_player(room: Room, player: Player, dt: float, now: float):
         player.knockback_x = player.knockback_y = 0
         player.knockback_source = None
     mx, my = player.move_x, player.move_y
-    speed = (192 + player.upgrades["velocity"] * 25) * \
+    speed = (192 + player.upgrades.get("velocity", 0) * 16) * \
         WEAPONS.get(player.weapon, WEAPONS["pulse"]).get("movement_modifier", 1) * \
         PLAYER_SPEED_SCALE
     if player.is_zombie and room.mode == "zombie_coop":
@@ -1748,7 +1858,7 @@ def _heal_player(room: Room, source: Player, target: Player, amount: float, now:
     if (source.dead_until > now or target.dead_until > now or
             not _is_ally(room, source, target)):
         return 0
-    maximum = 140 if target.is_zombie else 100 + target.upgrades["vitality"] * 20
+    maximum = max_health(target)
     previous = target.hp
     target.hp = min(maximum, target.hp + int(round(amount)))
     healed = target.hp - previous
@@ -1795,7 +1905,11 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         ammo["reload_until"] = 0
         if _discard_empty_weapon(player, player.weapon, now):
             return
-    if not player.firing or now - player.last_shot < weapon["cooldown"]:
+    # ``rapid`` shortens both the firing cadence and the reload time.
+    rapid = player.upgrades.get("rapid", 0)
+    cooldown = weapon["cooldown"] * (1 - rapid * .06)
+    reload_time = weapon["reload"] * (1 - rapid * .08)
+    if not player.firing or now - player.last_shot < cooldown:
         return
     if ammo["mag"] == 0:
         if ammo["reserve"] < 0:
@@ -1803,7 +1917,7 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         elif ammo["reserve"] == 0:
             return
         else:
-            ammo["reload_until"] = now + weapon["reload"]
+            ammo["reload_until"] = now + reload_time
             return
     if ammo["mag"] == 0:
         return
@@ -1817,7 +1931,7 @@ def _spawn_projectile(room: Room, player: Player, now: float):
     if ammo["mag"] > 0:
         ammo["mag"] -= 1
         if ammo["mag"] == 0 and ammo["reserve"] != 0:
-            ammo["reload_until"] = now + weapon["reload"]
+            ammo["reload_until"] = now + reload_time
         elif ammo["mag"] == 0:
             _discard_empty_weapon(player, player.weapon, now)
     if weapon.get("self_heal"):
@@ -1836,7 +1950,7 @@ def _spawn_projectile(room: Room, player: Player, now: float):
     speed = weapon["speed"] * PROJECTILE_SPEED_SCALE
     if weapon["kind"] in MISSILE_KINDS:
         speed *= MISSILE_SPEED_SCALE
-    damage = weapon["damage"] * (1 + player.upgrades["amplify"] * .12)
+    damage = weapon["damage"] * (1 + player.upgrades.get("amplify", 0) * .12)
     projectile_count = weapon.get("projectiles", 1)
     target_x, target_y = aim_x, aim_y
     flight_life = weapon["life"]
@@ -1861,7 +1975,7 @@ def _spawn_projectile(room: Room, player: Player, now: float):
                        if weapon["kind"] in MISSILE_KINDS else weapon.get("blast", 0)),
             "bounces": weapon.get("bounces", 0),
             "turn": weapon.get("turn", 0) * HOMING_TURN_SCALE,
-            "pierce": weapon.get("pierce", 0),
+            "pierce": weapon.get("pierce", 0) + player.upgrades.get("penetration", 0),
             "combo_damage": weapon.get("combo_damage", 0),
             "combo_blast": weapon.get("combo_blast", 0),
             "knockback": KNOCKBACK_FORCE if weapon["kind"] in MISSILE_KINDS and weapon.get("blast", 0) else 0,
@@ -1888,9 +2002,18 @@ def _hurt(room: Room, source: Player, target: Player, amount: float, now: float,
                                          now + COVER_EXPOSURE_SECONDS)
     if target.shield_until > now:
         amount = min(amount, 10)
+    # ``tenacity`` shaves a flat percentage off every incoming hit, so a
+    # heavily upgraded tank simply takes less damage per bullet.
+    amount *= max(.4, 1 - target.upgrades.get("tenacity", 0) * .04)
     absorbed = min(target.armor, max(0, int(round(amount * .55))))
     target.armor -= absorbed
-    target.hp -= max(1, int(round(amount - absorbed)))
+    dealt = max(1, int(round(amount - absorbed)))
+    hp_before = target.hp
+    target.hp -= dealt
+    if not self_hit and _can_damage(room, source, target):
+        # Experience follows the health that was really taken, so a huge
+        # overkill hit cannot farm more XP than the pilot actually lost.
+        _grant_xp(room, source, min(dealt, max(0, hp_before)) * XP_PER_DAMAGE, now)
     if target.hp > 0:
         return
     target.deaths += 1
@@ -1898,6 +2021,7 @@ def _hurt(room: Room, source: Player, target: Player, amount: float, now: float,
         source.kills += 1
         source.score += 100
         source.souls += 30 if room.mode == "team_dm" else 1
+        _grant_xp(room, source, XP_PER_KILL, now)
         if room.mode == "zombie_dm" and source.souls >= 1200:
             room.winner = source.id
         if room.mode == "team_dm" and source.team in (0, 1):
@@ -1932,7 +2056,11 @@ def _hurt(room: Room, source: Player, target: Player, amount: float, now: float,
     if not converted:
         target.dead_until = now + RESPAWN_DELAY
         target.invincible_until = 0
-    target.x, target.y = safe_spawn(room.map_id, [p for p in room.players.values() if p.id != target.id])
+        # The body stays exactly where it fell. Teleporting it away would make
+        # the kill unreadable, so the corpse holds the death spot until the
+        # respawn timer expires.
+        target.death_at = now
+        target.corpse_angle = math.atan2(target.aim_y - target.y, target.aim_x - target.x)
     target.move_x = target.move_y = 0
     target.knockback_x = target.knockback_y = 0
     target.knockback_until = 0
@@ -1995,7 +2123,7 @@ def _reset_round(room: Room, map_id: str, now: float):
     for player in room.players.values():
         player.x, player.y = safe_spawn(room.map_id, placed)
         placed.append(player)
-        player.hp = 140 if player.is_zombie else 100 + player.upgrades["vitality"] * 20
+        player.hp = max_health(player)
         player.armor = 0
         player.cover_exposed_until = 0
         player.energy = START_ENERGY
@@ -2041,6 +2169,19 @@ def _record_map_vote(room: Room, player_id: str, map_id: str, now: float):
     return False
 
 
+def _respawn_player(room: Room, player: Player, now: float):
+    """Clear the corpse and re-materialise the pilot on a fresh legal spot."""
+    player.dead_until = 0
+    player.death_at = 0
+    player.x, player.y = safe_spawn(room.map_id, [p for p in room.players.values() if p.id != player.id])
+    player.portal_cooldown_until = 0
+    player.hp = max_health(player)
+    player.armor = 0
+    player.cover_exposed_until = 0
+    player.energy = START_ENERGY
+    player.invincible_until = now + SPAWN_INVINCIBILITY
+
+
 def _update_flags(room: Room, now: float):
     if not room.flags or room.winner:
         return
@@ -2080,6 +2221,7 @@ def _update_flags(room: Room, now: float):
                 player.carried_flag = None
                 player.captures += 1
                 player.score += 150
+                _grant_xp(room, player, XP_PER_CAPTURE, now)
                 room.team_scores[str(player.team)] += 1
                 add_feed(room, player.name + " captured the flag")
                 if room.team_scores[str(player.team)] >= 3:
@@ -2096,7 +2238,7 @@ def _blast(room: Room, projectile: dict, now: float):
     for target in room.players.values():
         self_hit = target.id == source.id
         if target.dead_until > now:
-            # A downed pilot is not a physics object: without this the corpse
+            # A downed pilot is not a physics object: without this the body
             # keeps catching knockback from every later blast.
             continue
         if (self_hit and not projectile.get("self_damage")) or (not self_hit and not _can_damage(room, source, target)):
@@ -2331,7 +2473,8 @@ def _use_ability(room: Room, player: Player, ability: str, now: float):
         player.dash_x, player.dash_y = dx / length, dy / length
         player.dash_until = now + .20
         player.jump_until = now + .45
-        player.next_dash = now + 1.8
+        # ``swift`` cuts the dash cooldown down, one fifth of a second per tier.
+        player.next_dash = now + max(.36, 1.8 - player.upgrades.get("swift", 0) * .18)
         return True
     elif ability == "shield" and now >= player.next_shield:
         player.energy -= cost
@@ -2341,7 +2484,7 @@ def _use_ability(room: Room, player: Player, ability: str, now: float):
         return True
     elif ability == "repair" and now >= player.next_repair:
         player.energy -= cost
-        player.hp = min(100 + player.upgrades["vitality"] * 20, player.hp + 22)
+        player.hp = min(max_health(player), player.hp + 22)
         player.next_repair = now + 12
         return True
     return False
@@ -2352,7 +2495,7 @@ def _reload(player: Player, now: float):
     ammo = player.ammo[player.weapon]
     if ammo["mag"] >= weapon["clip"] or ammo["reserve"] <= 0 or ammo["reload_until"] > now:
         return
-    ammo["reload_until"] = now + weapon["reload"]
+    ammo["reload_until"] = now + weapon["reload"] * (1 - player.upgrades.get("rapid", 0) * .08)
 
 
 def _make_pickups(room: Room):
@@ -2398,7 +2541,7 @@ def _collect_resources(room: Room, now: float):
     for player in room.players.values():
         if player.is_bot or player.is_zombie or player.dead_until > now:
             continue
-        maximum_hp = 140 if player.is_zombie else 100 + player.upgrades["vitality"] * 20
+        maximum_hp = max_health(player)
         for item in room.resources:
             if (item["respawn_at"] > now or
                     math.hypot(player.x - item["x"], player.y - item["y"]) > 25):
@@ -2459,15 +2602,12 @@ async def run_room(room: Room):
                     player.move_x = player.move_y = 0
                     player.firing = False
                     continue
-                player.dead_until = 0
-                player.x, player.y = safe_spawn(room.map_id, [p for p in room.players.values() if p.id != player.id])
-                player.portal_cooldown_until = 0
-                player.hp = 140 if player.is_zombie else 100 + player.upgrades["vitality"] * 20
-                player.armor = 0
-                player.cover_exposed_until = 0
-                player.energy = START_ENERGY
-                player.invincible_until = now + SPAWN_INVINCIBILITY
+                _respawn_player(room, player, now)
             player.energy = min(100.0, player.energy + ENERGY_REGEN_RATE_PER_SECOND * dt)
+            # ``regeneration`` slowly tops the pilot back up while alive.
+            regen = player.upgrades.get("regeneration", 0) * .6
+            if regen and player.hp > 0 and player.hp < max_health(player):
+                player.hp = min(max_health(player), player.hp + regen * dt)
             if player.is_bot:
                 _choose_bot_input(room, player, now)
             if not room.winner:
@@ -2704,11 +2844,13 @@ async def arena_socket(socket: WebSocket):
                     _use_ability(room, player, ability, now)
             elif kind == "upgrade" and message.get("upgrade") in UPGRADES:
                 upgrade = message["upgrade"]
-                if player.score >= 200 and player.upgrades[upgrade] < 3:
-                    player.score -= 200
+                # Stat points come from levelling up, not from score. One point
+                # buys one tier of one stat, and every stat stops at MAX_TIER.
+                if player.stat_points >= 1 and player.upgrades[upgrade] < MAX_TIER:
+                    player.stat_points -= 1
                     player.upgrades[upgrade] += 1
                     if upgrade == "vitality":
-                        player.hp = min(160, player.hp + 25)
+                        player.hp = min(max_health(player), player.hp + 25)
             elif kind == "chat":
                 content = " ".join(str(message.get("content", "")).split())[:180]
                 if content:

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#202d1b">
   <title>Morrow Fields · Forest Skirmish</title>
   <link rel="icon" href="/arena/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/arena/game.css?v=24">
+  <link rel="stylesheet" href="/arena/game.css?v=25">
 </head>
 <body>
   <main class="game-shell">
@@ -27,10 +27,17 @@
             <button class="ability" type="button" data-ability="repair"><kbd>E</kbd><span><b>修复</b><small>恢复生命</small></span></button>
           </div>
           <div class="upgrade-box" aria-label="升级">
-            <small id="upgrade-points" class="upgrade-points" aria-live="polite">技能点 0 · Space 确认选择 · 每200战绩获得1点</small>
-            <button type="button" data-upgrade="vitality"><kbd>V</kbd> 加固外壳</button>
-            <button type="button" data-upgrade="velocity"><kbd>X</kbd> 提升速度</button>
-            <button type="button" data-upgrade="amplify"><kbd>C</kbd> 强化武器</button>
+            <small id="upgrade-points" class="upgrade-points" aria-live="polite">属性点 0 · 每级 +2 点 · Space 确认所选升级</small>
+            <div class="upgrade-grid">
+              <button type="button" data-upgrade="vitality"><kbd>V</kbd> 加固外壳<span class="upgrade-tier">0/8</span></button>
+              <button type="button" data-upgrade="velocity"><kbd>X</kbd> 推进器<span class="upgrade-tier">0/8</span></button>
+              <button type="button" data-upgrade="amplify"><kbd>C</kbd> 弹药增幅<span class="upgrade-tier">0/8</span></button>
+              <button type="button" data-upgrade="regeneration"><kbd>B</kbd> 再生舱<span class="upgrade-tier">0/8</span></button>
+              <button type="button" data-upgrade="tenacity"><kbd>G</kbd> 韧性装甲<span class="upgrade-tier">0/8</span></button>
+              <button type="button" data-upgrade="rapid"><kbd>T</kbd> 快速装填<span class="upgrade-tier">0/8</span></button>
+              <button type="button" data-upgrade="swift"><kbd>F</kbd> 疾风冲刺<span class="upgrade-tier">0/8</span></button>
+              <button type="button" data-upgrade="penetration"><kbd>P</kbd> 穿透弹芯<span class="upgrade-tier">0/8</span></button>
+            </div>
             <button type="button" id="confirm-upgrade" class="upgrade-confirm" disabled><kbd>SPACE</kbd>确认所选升级</button>
           </div>
         </aside>
@@ -41,7 +48,7 @@
           <div id="mini-rows" class="mini-rows"></div>
         </aside>
 
-        <div class="hud top-left"><span class="hud-label">生命值</span><div class="health"><i id="health-fill"></i></div><b id="health-number">100 / 100</b><span class="hud-label armor-label">护甲</span><div class="armor"><i id="armor-fill"></i></div><span class="hud-label energy-label">能量</span><div class="energy"><i id="energy-fill"></i></div></div>
+        <div class="hud top-left"><span class="hud-label">生命值</span><div class="health"><i id="health-fill"></i></div><b id="health-number">100 / 100</b><span class="hud-label armor-label">护甲</span><div class="armor"><i id="armor-fill"></i></div><span class="hud-label energy-label">能量</span><div class="energy"><i id="energy-fill"></i></div><div class="progression"><b id="level-badge">LV 1</b><div class="xp-bar"><i id="xp-fill"></i></div><small id="xp-label">0 / 60 XP</small></div></div>
         <div class="hud bottom-left"><span class="hud-label">战绩</span><b id="score">0000</b><small><span id="kills">0</span> 击倒 · <span id="deaths">0</span> 倒下</small></div>
         <div class="hud bottom-center weapon-readout"><span class="hud-label" id="weapon-name">PULSE NEEDLE</span><b id="ammo">∞</b><small id="weapon-info">BOLT / 28 DMG</small><div id="reload-status" class="reload-status hidden" aria-live="polite"><span>装填</span><i id="reload-fill"></i><small id="reload-label">0.0s</small></div></div>
         <button id="copy-room" class="copy-room hidden" type="button" title="复制房间链接">房间 <b>------</b> <span>复制邀请链接</span></button>
@@ -125,6 +132,6 @@
     </section>
     <footer class="game-footer"><span>MORROW FIELDS · ORIGINAL ONLINE ARENA</span><span>WASD / 左键射击 · 右键跳跃 · 1–0 / N / M / H / J / L · R 装填 · Y 副射击</span></footer>
   </main>
-  <script src="/arena/game.js?v=89"></script>
+  <script src="/arena/game.js?v=91"></script>
 </body>
 </html>

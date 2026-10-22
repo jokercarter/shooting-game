@@ -27,7 +27,14 @@ test('public arena controls, crowd-aware room state and mobile lobby',async({pag
  await expect(velocity).toHaveClass(/selected/);
  await expect(page.locator('#confirm-upgrade')).toBeDisabled();
  await page.keyboard.press('Space');
- await expect(page.locator('#toast')).toHaveText('没有可用技能点');
+ await expect(page.locator('#toast')).toHaveText('没有可用属性点');
+ // The progression HUD shows the starting level and an empty XP bar.
+ await expect(page.locator('#level-badge')).toHaveText('LV 1');
+ await expect(page.locator('#xp-label')).toHaveText('0 / 60 XP');
+ await expect(page.locator('#upgrade-points')).toContainText('属性点 0');
+ // All eight stats are offered in the upgrade panel.
+ await expect(page.locator('[data-upgrade]')).toHaveCount(8);
+ await expect(page.locator('#arena')).toBeVisible();
 
  await page.getByRole('button',{name:'返回大厅'}).click();
  await expect(page.getByLabel('玩家名称')).toBeVisible();
@@ -86,6 +93,9 @@ test('missile explosion shake attenuates with distance',async({page})=>{
  await page.getByLabel('玩家名称').fill('ShakePilot');
  await page.getByRole('button',{name:'进入战场'}).click();
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
+ // Let a couple of state frames land so the camera has settled on the pilot;
+ // measuring during the spawn transition reads a stale camera position.
+ await page.waitForTimeout(800);
  const measurements=await page.evaluate(()=>{
   const api=window as typeof window & {
    __morrowTestLocalPlayer?:()=>{x:number;y:number}|null;
