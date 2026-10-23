@@ -11,4 +11,5 @@ output/arena-validation/local-runtime.json
 tmp/
 *.log
 *.sqlite
+data/
 *.db

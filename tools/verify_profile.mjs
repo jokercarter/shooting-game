@@ -1,0 +1,14 @@
+import {chromium} from '@playwright/test';
+const b=await chromium.launch();
+const p=await b.newPage({viewport:{width:1280,height:800}});
+await p.goto('http://127.0.0.1:4192/arena/');
+await p.getByLabel('玩家名称').fill('Persist');
+await p.getByRole('button',{name:'进入战场'}).click();
+await p.getByText('LIVE FRONTIER',{exact:true}).waitFor({timeout:15000});
+await p.waitForTimeout(9000);
+await p.getByRole('button',{name:'返回大厅'}).click().catch(()=>{});
+await p.waitForTimeout(1500);
+const line=await p.locator('#profile-line').textContent().catch(()=>null);
+const id=await p.evaluate(()=>localStorage.getItem('morrow-fields-client-id'));
+console.log(JSON.stringify({id,line}));
+await b.close();

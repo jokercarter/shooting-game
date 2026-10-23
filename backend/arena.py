@@ -11,6 +11,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from . import store
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 PROFILE_ROOM_TICKS = os.environ.get("ARENA_PROFILE_TICKS") == "1"
@@ -1011,6 +1012,7 @@ def _grant_xp(room: "Room", player: "Player", amount, now: float):
         player.level = new_level
         player.stat_points += gained * STAT_POINTS_PER_LEVEL
         player.hp = max_health(player)
+        store.save_progress(player.profile_id, new_level, int(player.xp))
         add_feed(room, f"{player.name} 升到 {new_level} 级")
 @dataclass
 class Player:
@@ -1036,6 +1038,9 @@ class Player:
     level: int = 1
     stat_points: int = 0
     is_bot: bool = False
+    # Persistent identity for this browser. Empty for bots, zombies and every
+    # player created by the test-suite, which keeps the store a no-op there.
+    profile_id: str = ""
     team: int = 0
     is_zombie: bool = False
     lives: int = 5
@@ -2017,8 +2022,10 @@ def _hurt(room: Room, source: Player, target: Player, amount: float, now: float,
     if target.hp > 0:
         return
     target.deaths += 1
+    store.bump(target.profile_id, "deaths")
     if not self_hit:
         source.kills += 1
+        store.bump(source.profile_id, "kills")
         source.score += 100
         source.souls += 30 if room.mode == "team_dm" else 1
         _grant_xp(room, source, XP_PER_KILL, now)
@@ -2102,8 +2109,18 @@ def _reset_player_loadout(player: Player):
             player.ammo[key] = {"mag": 0, "reserve": 0, "reload_until": 0}
 
 
+def _record_match(room: Room):
+    """Write one finished match per human pilot so the daily board has data."""
+    for player in room.players.values():
+        if player.is_bot or player.is_zombie or not player.profile_id:
+            continue
+        store.record_match(player.profile_id, room.mode, room.map_id,
+                           player.kills, player.deaths, player.score, player.level)
+
+
 def _reset_round(room: Room, map_id: str, now: float):
     """Start a fresh round in the same room after a completed match vote."""
+    _record_match(room)
     room.map_id = map_id if map_id in MAPS else "tidal"
     room.winner = None
     room.map_votes.clear()
@@ -2665,6 +2682,21 @@ def active_rooms():
                   key=lambda room: (-room["players"], room["code"]))[:30]
 
 
+@router.get("/api/arena/profile/{player_id}")
+def arena_profile(player_id: str):
+    """A first-time visitor is not an error: return an empty career instead."""
+    pid = store.profile_id(player_id)
+    profile = store.load(pid) if pid else None
+    return profile or {"id": pid, "nickname": "", "level": 1, "xp": 0,
+                       "kills": 0, "deaths": 0, "matches": 0,
+                       "best_streak": 0, "recent": []}
+
+
+@router.get("/api/arena/leaderboard")
+def arena_leaderboard(limit: int = 10, hours: float = 24):
+    return store.leaderboard(limit=limit, since_hours=max(1.0, min(720.0, hours)))
+
+
 @router.websocket("/ws/arena/lobby")
 async def arena_lobby_socket(socket: WebSocket):
     origin = socket.headers.get("origin")
@@ -2776,8 +2808,11 @@ async def arena_socket(socket: WebSocket):
                 requested_skin = hello.get("skin")
                 skin = (requested_skin if isinstance(requested_skin, str) and
                         requested_skin in PLAYER_SKINS else "wayfinder")
+                profile_id = store.profile_id(hello.get("client_id"))
+                stored = store.touch(profile_id, _clean_name(hello.get("name")))
                 player = Player(
                     id=secrets.token_urlsafe(7), name=_clean_name(hello.get("name")),
+                    profile_id=profile_id,
                     x=spawn_x, y=spawn_y, skin=skin,
                     hue=hue, team=team, lives=5 if room.mode == "duel" else 0,
                 )
@@ -2795,7 +2830,7 @@ async def arena_socket(socket: WebSocket):
         else:
             await socket.send_json({
                 **room_view(room, player.id), "type": "welcome", "id": player.id,
-                "maps": MAPS, "weapons": WEAPONS,
+                "maps": MAPS, "weapons": WEAPONS, "profile": stored,
             })
         await broadcast(room)
         while True:

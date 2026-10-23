@@ -414,3 +414,44 @@ body{font-size:14px}.brand{font-size:15px}.match-state{font-size:13px}.match-sta
 .lobby-chat-empty{color:#6f7a80}
 .lobby-network p{line-height:1.55}
 @media(max-width:760px){.overlay h1{padding-left:10px;border-left-width:3px}}
+
+/* Lobby · first screen only asks for a name and a start.
+   Modes, map and skin stay one click away so a new pilot is not facing
+   twenty controls before their first match. */
+.lobby-card>.lobby-advanced-row{grid-column:1;grid-row:6;display:flex;align-items:center;gap:10px;margin:2px 0 2px}
+.lobby-card>.mode-section{grid-row:7}
+.lobby-card>.map-picker{grid-row:8}
+.lobby-card>.lobby-actions{grid-row:9}
+.lobby-card>.control-hint{grid-row:10}
+.advanced-toggle{
+  border:2px solid #4b555c;background:linear-gradient(180deg,#2b3238,#20262a);color:#d8d2ae;
+  font:700 9px "Courier New",monospace;letter-spacing:.16em;text-transform:uppercase;
+  padding:6px 10px;border-radius:2px;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 0 rgba(0,0,0,.45);
+}
+.advanced-toggle:hover{border-color:#cdb45f;color:#f2e2a4}
+.advanced-toggle:active{transform:translateY(1px);box-shadow:inset 0 2px 5px rgba(0,0,0,.5)}
+.profile-line{color:#98a3a9;font:9px "Courier New",monospace;letter-spacing:.06em}
+.lobby-card.compact .mode-section,
+.lobby-card.compact .map-picker,
+.lobby-card.compact .skin-cycle{display:none}
+@media(max-width:760px){
+  .lobby-card>.lobby-advanced-row{grid-row:auto;margin:0}
+}
+
+/* Lobby · hide the in-match HUD until the pilot actually deploys, so the first
+   screen is a menu and not an empty cockpit. */
+body:not(.in-match) .top-left,
+body:not(.in-match) .bottom-left,
+body:not(.in-match) .weapon-readout,
+body:not(.in-match) .minimap-panel{opacity:0;pointer-events:none;transition:opacity .18s ease}
+body.in-match .top-left,
+body.in-match .bottom-left,
+body.in-match .weapon-readout,
+body.in-match .minimap-panel{opacity:1}
+/* Two-column upgrade grid needs a little more room than the old three-item
+   list, otherwise the tier badges push past the panel edge. */
+.loadout-panel{width:172px}
+.upgrade-grid{min-width:0}
+.upgrade-box button{min-width:0;overflow:hidden;white-space:nowrap}
+@media(max-width:760px){.loadout-panel{width:150px}}
