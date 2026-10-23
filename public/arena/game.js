@@ -1,5 +1,9 @@
 (() => {
-  const canvas = document.querySelector('#arena'), ctx = canvas.getContext('2d'), W = 960, H = 640;
+  const canvas = document.querySelector('#arena');
+  // ``ctx`` is reassigned while the static terrain is baked into an
+  // offscreen buffer, so every drawer keeps drawing into the live one.
+  let ctx = canvas.getContext('2d');
+  const W = 960, H = 640;
   // Keep gameplay coordinates stable while giving the canvas a dense backing
   // store. This removes the soft browser upscale on Retina/high-DPI screens
   // without changing the pixel-art proportions or input math.
@@ -15,6 +19,21 @@
   // How long the camera keeps looking at the body after the local pilot dies,
   // so the topple is actually readable before the view hands over.
   const CORPSE_LINGER_MS = 1400;
+  // A browser-scoped identity. The server keys career stats on this id, so it
+  // has to survive reloads without asking the player to sign up.
+  function stableClientId(){
+    let value='';
+    try{value=localStorage.getItem('morrow-fields-client-id')||''}catch{}
+    if(!value){
+      value='p'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+      try{localStorage.setItem('morrow-fields-client-id',value)}catch{}
+    }
+    return value;
+  }
+  const CLIENT_ID=stableClientId();
+  // Escape hatch for benchmarking: ?terrain-off renders the static layers every
+  // frame exactly like the old path, so the cache win can be measured.
+  const TERRAIN_CACHE=!new URLSearchParams(location.search).has('terrain-off');
   const miniMap = document.querySelector('#mini-map'), miniCtx = miniMap.getContext('2d');
   const ui = {
     start: document.querySelector('#start-screen'), startButton: document.querySelector('#start'), watchRoom: document.querySelector('#watch-room'),
@@ -27,6 +46,8 @@
     ammo: document.querySelector('#ammo'), info: document.querySelector('#weapon-info'), reloadStatus: document.querySelector('#reload-status'), reloadFill: document.querySelector('#reload-fill'), reloadLabel: document.querySelector('#reload-label'),
     upgradePoints: document.querySelector('#upgrade-points'),
     confirmUpgrade: document.querySelector('#confirm-upgrade'),
+    toggleAdvanced: document.querySelector('#toggle-advanced'), profileLine: document.querySelector('#profile-line'),
+    toggleAdvanced: document.querySelector('#toggle-advanced'), profileLine: document.querySelector('#profile-line'),
     levelBadge: document.querySelector('#level-badge'),
     xpFill: document.querySelector('#xp-fill'), xpLabel: document.querySelector('#xp-label'),
     state: document.querySelector('#state-label'), perf: document.querySelector('#perf-label'), settings: document.querySelector('#settings'), optionsPanel: document.querySelector('#options-panel'), copyRoom: document.querySelector('#copy-room'),
@@ -127,6 +148,11 @@
   let socket, lobbySocket, lobbyReconnectTimer, id, room, roomCapacity=20, map='tidal', mode='normal', modeName='Normal Deathmatch', maps={}, weapons={}, players=[], previousPlayers=new Map(), spectatorMode=false, privatePlayer=null, privateVotedMap=null, lastStateMessage=null;
   let cameraX=W/2,cameraY=H/2,spectatorTarget=null,spectatorId=null;
   let cameraShake=0, screenShake=0, explosionFlash=0, damageFlash=0, hitConfirm=0, weaponRecoil=new Map(), cameraKickX=0, cameraKickY=0, ownDeathAt=0;
+  // Static terrain buffer state. Declared with the other runtime state because
+  // asset callbacks and the settings panel may poke it before the draw loop
+  // is ever reached.
+  let terrainCanvas=null, terrainReady=false, terrainKey='', terrainPass=false, obstacleReady=false, obstacleFlipTimer=null;
+  let drawCostMs=0, terrainBuilds=0;
   let debugProjectiles=[], projectiles=[], pickups=[], pickupSpawns=[], resources=[], resourceSpawns=[], previousProjectileIds=new Set(), projectileTrails=new Map(), particles=[], rings=[], muzzles=[], damageNumbers=[], started=false;
   let flags={}, teamScores={'0':0,'1':0}, winner=null;
   let selectedMap='tidal', selectedMode='normal', selectedSkin='wayfinder', selectedUpgrade='vitality', last=0, nextRenderAt=0, stateAt=0, stateIntervalMs=50, startedAt=0, dashReadyAt=0, inputTimer, inputIntervalMs=25, pingTimer, roomTimer, toastTimer, reconnectTimer=null, reconnectAttempts=0, intentionalSocketClose=false;
@@ -150,7 +176,17 @@
   const WEAPON_SPRITE_KEYS={pulse:'pulse',flame:'flame',lobber:'lobber',rapid_lobber:'lobber',prism:'prism',flare:'prism',rapid_flare:'prism',healing_wave:'heal'};
   function loadGeneratedAssets(){
     for(const [group,entries] of Object.entries(GENERATED_ASSET_SOURCES))for(const [key,src] of Object.entries(entries)){
-      const image=new Image();image.decoding='async';image.onload=()=>{if(group==='grounds')groundPatterns.delete(key)};image.src=src;generatedAssets[group].set(key,image);
+      const image=new Image();image.decoding='async';
+      image.onload=()=>{
+        if(group==='grounds')groundPatterns.delete(key);
+        // Obstacles are baked into the terrain buffer, so a late sprite must
+        // refresh it once. Debounce: 37 sprites load at once.
+        if(group==='obstacles'){
+          clearTimeout(obstacleFlipTimer);
+          obstacleFlipTimer=setTimeout(()=>{obstacleReady=true;invalidateTerrain()},600);
+        }
+      };
+      image.src=src;generatedAssets[group].set(key,image);
     }
   }
   function generatedImage(group,key){const image=generatedAssets[group]?.get(key);return image&&image.complete&&image.naturalWidth>0?image:null}
@@ -311,7 +347,7 @@
       muzzles.push({x:Number.isFinite(opts.x)?opts.x:cameraX,y:Number.isFinite(opts.y)?opts.y:cameraY,
         vx:Math.cos(dir)*120,vy:Math.sin(dir)*120,kind:key,life,max:life,color:w.color||opts.color});
     };
-    window.__morrowTestRenderState=()=>({canvas_width:canvas.width,canvas_height:canvas.height,dpr:window.devicePixelRatio,resource_spawns:resourceSpawns.length,resources:resources.length,screen_shake:screenShake,camera_shake:cameraShake,camera_kick:[Math.round(cameraKickX),Math.round(cameraKickY)],explosion_flash:explosionFlash,rings:rings.length,particles:particles.length,smoke:particles.filter(p=>p.smoke).length,low_effects:displaySettings.lowEffects});
+    window.__morrowTestRenderState=()=>({canvas_width:canvas.width,canvas_height:canvas.height,dpr:window.devicePixelRatio,resource_spawns:resourceSpawns.length,resources:resources.length,screen_shake:screenShake,camera_shake:cameraShake,camera_kick:[Math.round(cameraKickX),Math.round(cameraKickY)],explosion_flash:explosionFlash,rings:rings.length,particles:particles.length,smoke:particles.filter(p=>p.smoke).length,low_effects:displaySettings.lowEffects,draw_ms:Math.round(drawCostMs*100)/100,terrain_builds:terrainBuilds,terrain_cache:TERRAIN_CACHE});
     window.__morrowTestTriggerExplosion=({x,y,blast=72}={})=>{
       const xx=Number.isFinite(x)?x:cameraX,yy=Number.isFinite(y)?y:cameraY,seed=Math.floor(Math.random()*32),color='#e2a33e',power=1.5;
       rings.push({x:xx,y:yy,life:660,max:660,color,r:blast*.56*power,kind:'seeker',blast,power,seed,layer:'main'});
@@ -368,6 +404,7 @@
   }
   function screenToWorld(x,y){return{x:Math.max(0,Math.min(WORLD_W,cameraX+(x-W/2)/CAMERA_ZOOM)),y:Math.max(0,Math.min(WORLD_H,cameraY+(y-H/2)/CAMERA_ZOOM))}}
   function visibleRect(x,y,w=0,h=0,padding=64){
+    if(terrainPass)return true;
     const left=cameraX-W/(2*CAMERA_ZOOM)-padding,right=cameraX+W/(2*CAMERA_ZOOM)+padding;
     const top=cameraY-H/(2*CAMERA_ZOOM)-padding,bottom=cameraY+H/(2*CAMERA_ZOOM)+padding;
     return x+w>=left&&x<=right&&y+h>=top&&y<=bottom;
@@ -385,6 +422,7 @@
   }
   function applyDisplaySettings(){
     document.body.classList.toggle('low-effects',displaySettings.lowEffects);
+    if(typeof invalidateTerrain==='function')invalidateTerrain();
     document.body.classList.toggle('hide-minimap',!displaySettings.minimap);
     document.body.classList.toggle('hide-loadout',!displaySettings.weapons);
     document.body.classList.toggle('hide-chat',!displaySettings.chat);
@@ -862,7 +900,7 @@
     if(testReconnectMode){
       window.__morrowTestDisconnect=()=>{intentionalSocketClose=false;currentSocket.close()};
     }
-    socket.onopen=()=>{reconnectAttempts=0;intentionalSocketClose=false;send({type:'join',name:ui.name.value,room:ui.room.value,map:selectedMap,mode:selectedMode,skin:selectedSkin,spectator:spectatorMode})};
+    socket.onopen=()=>{reconnectAttempts=0;intentionalSocketClose=false;send({type:'join',client_id:CLIENT_ID,name:ui.name.value,room:ui.room.value,map:selectedMap,mode:selectedMode,skin:selectedSkin,spectator:spectatorMode})};
     socket.onmessage=e=>{let message;try{message=JSON.parse(e.data)}catch{return}handle(message)};
     socket.onerror=()=>{if(socket===currentSocket)ui.status.textContent='中继网络暂时不可用。正在重试…'};
     socket.onclose=()=>{
@@ -873,9 +911,32 @@
       intentionalSocketClose=false;
     };
   }
+  // First screen stays a three-field form; everything else is one click away.
+  ui.toggleAdvanced?.addEventListener('click',()=>{
+    const card=ui.toggleAdvanced.closest('.lobby-card');
+    const compact=card.classList.toggle('compact');
+    ui.toggleAdvanced.setAttribute('aria-expanded',String(!compact));
+    ui.toggleAdvanced.textContent=compact?'更多选项 ▾':'收起选项 ▴';
+  });
+  function renderProfileCard(profile){
+    if(!ui.profileLine||!profile)return;
+    const games=Number(profile.matches)||0;
+    if(!games)return;
+    ui.profileLine.textContent='累计 '+games+' 场 · 击杀 '+(Number(profile.kills)||0)+' · 等级 '+(Number(profile.level)||1);
+    ui.profileLine.classList.remove('hidden');
+  }
+  async function loadProfileCard(){
+    if(!ui.profileLine)return;
+    try{
+      const response=await fetch('/api/arena/profile/'+encodeURIComponent(CLIENT_ID));
+      if(!response.ok)return;
+      renderProfileCard(await response.json());
+    }catch{}
+  }
+  loadProfileCard();
   function handle(message){
     if(message.type==='welcome'){
-      id=message.id;spectatorMode=Boolean(message.spectator);maps=message.maps||{};weapons=message.weapons||{};map=message.map||'tidal';room=message.room;
+      id=message.id;spectatorMode=Boolean(message.spectator);renderProfileCard(message.profile);maps=message.maps||{};weapons=message.weapons||{};map=message.map||'tidal';room=message.room;
       privatePlayer=null;privateVotedMap=Object.prototype.hasOwnProperty.call(message,'voted_map')?message.voted_map:null;lastStateMessage=null;
       winner=null;resultShown=false;pingValue=0;damageFlash=0;hitConfirm=0;cameraKickX=0;cameraKickY=0;spectatorId=null;replayFrames=[];ui.matchResult?.classList.add('hidden');cameraShake=0;screenShake=0;explosionFlash=0;weaponRecoil.clear();projectileTrails.clear();previousProjectileIds.clear();projectiles=[];particles=[];rings=[];muzzles=[];damageNumbers=[];resources=[];resourceSpawns=[];
       privatePlayer=privatePlayerFields((message.players||[]).find(player=>player.id===id));
@@ -1090,8 +1151,10 @@
     const pal=scenePal(), low=compactScene();
     const viewL=cameraX-W/(2*CAMERA_ZOOM), viewR=cameraX+W/(2*CAMERA_ZOOM);
     const viewT=cameraY-H/(2*CAMERA_ZOOM), viewB=cameraY+H/(2*CAMERA_ZOOM);
-    const c0=Math.floor(viewL/TILE_PX), c1=Math.ceil(viewR/TILE_PX);
-    const r0=Math.floor(viewT/TILE_PX), r1=Math.ceil(viewB/TILE_PX);
+    const c0=terrainPass?0:Math.floor(viewL/TILE_PX);
+    const c1=terrainPass?Math.ceil(WORLD_W/TILE_PX):Math.ceil(viewR/TILE_PX);
+    const r0=terrainPass?0:Math.floor(viewT/TILE_PX);
+    const r1=terrainPass?Math.ceil(WORLD_H/TILE_PX):Math.ceil(viewB/TILE_PX);
     ctx.fillStyle=pal.base;
     ctx.fillRect(c0*TILE_PX,r0*TILE_PX,(c1-c0)*TILE_PX,(r1-r0)*TILE_PX);
     // One stone slab per grid cell: flat fill, a light top/left bevel, a dark
@@ -1153,7 +1216,7 @@
         ctx.globalAlpha=1;
       }
     }
-    drawArenaLip(pal);
+    if(!terrainPass)drawArenaLip(pal);
   }
   function drawWater(){
     const w=scenePal().water, now=performance.now()/1000, low=compactScene();
@@ -1284,7 +1347,9 @@
     g.beginPath();
     if(g.roundRect)g.roundRect(2,2,w-4,h-4,Math.min(18,Math.min(w,h)*.22));else g.rect(2,2,w-4,h-4);
     g.fill();
-    const cols=Math.max(1,Math.round(w/TILE_PX)), rows=Math.max(1,Math.round(h/TILE_PX));
+    // Leaf clusters every ~64px read as foliage; one per 100px tile read as a
+    // painted rounded box.
+    const cols=Math.max(1,Math.round(w/64)), rows=Math.max(1,Math.round(h/64));
     for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
       const cx=(col+.5)*(w/cols), cy=(row+.5)*(h/rows);
       const radius=Math.min(w/cols,h/rows)*.3;
@@ -2643,7 +2708,41 @@
     miniCtx.strokeStyle='#ffd86b';miniCtx.lineWidth=1.5;
     miniCtx.strokeRect(viewX+.5,viewY+.5,viewW,viewH);
   }
+  // --- static terrain buffer -----------------------------------------------
+  // Ground, water, bushes, props, obstacles and bridges never change inside a
+  // round. They are baked once into a world-sized canvas and blitted per frame,
+  // which removes roughly 900 fill/stroke calls from every tick. This is the
+  // single biggest win on low-end machines.
+  function invalidateTerrain(){terrainReady=false}
+  function buildTerrain(){
+    if(!terrainCanvas){
+      terrainCanvas=document.createElement('canvas');
+      terrainCanvas.width=WORLD_W;terrainCanvas.height=WORLD_H;
+    }
+    const buffer=terrainCanvas.getContext('2d');
+    buffer.setTransform(1,0,0,1,0,0);
+    buffer.clearRect(0,0,WORLD_W,WORLD_H);
+    const live=ctx;
+    ctx=buffer;terrainPass=true;
+    try{
+      drawGrid();drawWater();drawCover();drawProps();drawObstacles();drawBridges();
+    }finally{
+      ctx=live;terrainPass=false;
+    }
+    terrainKey=map+'|'+(obstacleReady?'1':'0');
+    terrainReady=true;terrainBuilds+=1;terrainBuilds+=1;
+  }
+  function drawTerrain(){
+    const key=map+'|'+(obstacleReady?'1':'0');
+    if(!terrainReady||terrainKey!==key)buildTerrain();
+    const pad=96;
+    const sx=Math.max(0,cameraX-W/(2*CAMERA_ZOOM)-pad), sy=Math.max(0,cameraY-H/(2*CAMERA_ZOOM)-pad);
+    const sw=Math.min(WORLD_W-sx,W/CAMERA_ZOOM+pad*2), sh=Math.min(WORLD_H-sy,H/CAMERA_ZOOM+pad*2);
+    if(sw<=0||sh<=0)return;
+    ctx.drawImage(terrainCanvas,sx,sy,sw,sh,sx,sy,sw,sh);
+  }
   function draw(dt=1/60){
+    const drawStarted=performance.now();
     updateCamera();
     updateWeaponRecoil(dt);updateDamageFeedback(dt);
     const shake=cameraShake;cameraShake=Math.max(0,cameraShake-dt*26);
@@ -2652,7 +2751,9 @@
     ctx.save();ctx.translate(screenX,screenY);
     ctx.fillStyle=scenePal().void;ctx.fillRect(-32,-32,W+64,H+64);
     ctx.save();ctx.translate(W/2-cameraX*CAMERA_ZOOM+shakeX+cameraKickX,H/2-cameraY*CAMERA_ZOOM+shakeY+cameraKickY);ctx.scale(CAMERA_ZOOM,CAMERA_ZOOM);
-    drawGrid();drawWater();drawCover();drawProps();drawObstacles();drawBridges();drawPortals();
+    if(TERRAIN_CACHE){drawTerrain();drawArenaLip(scenePal())}
+    else{drawGrid();drawWater();drawCover();drawProps();drawObstacles();drawBridges()}
+    drawPortals();
     const rawBeacon=map==='tidal'?[480,76]:map==='glass'?[84,424]:[878,386];
     const beacon=rawBeacon.map(value=>value*WORLD_SCALE);
     ctx.save();ctx.translate(beacon[0],beacon[1]);ctx.globalAlpha=.8;ctx.strokeStyle=mapDef().accent;ctx.lineWidth=2;
@@ -2660,6 +2761,7 @@
     ctx.fillStyle='#edf4d5';ctx.beginPath();ctx.arc(0,0,3,0,Math.PI*2);ctx.fill();ctx.restore();
     drawPickupSpawns();drawResourceSpawns();drawFlags();drawPickups();drawResources();if(!displaySettings.lowEffects)drawMuzzles(dt);for(const projectile of projectiles)if(visibleRect(projectile.x-24,projectile.y-24,48,48,100))drawProjectile(projectile);for(const projectile of debugProjectiles){projectile.age+=dt;projectile.x+=projectile.vx*dt;projectile.y+=projectile.vy*dt;drawProjectile(projectile);}debugProjectiles=debugProjectiles.filter(projectile=>projectile.age<projectile.total_life);for(const p of players)drawPilot(p);if(!displaySettings.lowEffects)drawDamageNumbers(dt);
     drawParticles(dt);ctx.restore();drawSceneLighting();drawMinimap();
+    drawCostMs=drawCostMs*.9+(performance.now()-drawStarted)*.1;
     if(explosionFlash>0){
       ctx.fillStyle='rgba(255,166,74,'+Math.min(.28,explosionFlash*.34)+')';ctx.fillRect(-32,-32,W+64,H+64);
       if(explosionFlash>.46){ctx.fillStyle='rgba(255,244,190,'+Math.min(.14,(explosionFlash-.46)*.24)+')';ctx.fillRect(-32,-32,W+64,H+64)}
