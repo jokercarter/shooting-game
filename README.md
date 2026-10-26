@@ -68,6 +68,15 @@ Morrow Fields 是一款原创像素风俯视角在线竞技场游戏。玩家在
 npm run test:browser -- tests/arena.spec.ts
 ```
 
+下一阶段以 4–8 位朋友的电脑联机试玩为目标。规则、邀请方式、自动检查和真人验收清单见 [朋友联机试玩](docs/FRIEND_PLAYTEST.md)。自由混战每局 8 分钟，死亡保留当局成长，下一局从 1 级开始；大厅等级代表历史最高单局等级。
+
+```powershell
+npm run test:syntax
+npm run test:backend
+npm run test:functional
+npm run test:performance
+```
+
 <a id="en"></a>
 
 ## English

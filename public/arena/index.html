@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#202d1b">
   <title>Morrow Fields · Forest Skirmish</title>
   <link rel="icon" href="/arena/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/arena/game.css?v=25">
+  <link rel="stylesheet" href="/arena/game.css?v=31">
 </head>
 <body>
   <main class="game-shell">
@@ -52,7 +52,8 @@
         <div class="hud bottom-left"><span class="hud-label">战绩</span><b id="score">0000</b><small><span id="kills">0</span> 击倒 · <span id="deaths">0</span> 倒下</small></div>
         <div class="hud bottom-center weapon-readout"><span class="hud-label" id="weapon-name">PULSE NEEDLE</span><b id="ammo">∞</b><small id="weapon-info">BOLT / 28 DMG</small><div id="reload-status" class="reload-status hidden" aria-live="polite"><span>装填</span><i id="reload-fill"></i><small id="reload-label">0.0s</small></div></div>
         <button id="copy-room" class="copy-room hidden" type="button" title="复制房间链接">房间 <b>------</b> <span>复制邀请链接</span></button>
-        <div id="death-banner" class="death-banner hidden" aria-live="polite"><b>信号中断</b><small id="death-status">正在等待重启…</small></div>
+        <div id="damage-direction" class="damage-direction hidden" aria-label="受击方向" role="status"></div>
+        <div id="death-banner" class="death-banner hidden" aria-live="polite"><b>本次阵亡</b><span id="death-receipt"></span><small id="death-status">正在等待重启…</small><small>当局等级与加点保留</small></div>
         <section id="match-result" class="match-result hidden" aria-live="polite">
           <p class="eyebrow">MATCH COMPLETE</p>
           <h2 id="match-result-title">战斗结束</h2>
@@ -79,11 +80,22 @@
           <label class="range-option"><span>小地图尺寸 <output id="option-minimap-scale-value">100%</output></span><input id="option-minimap-scale" type="range" min="0.75" max="1.4" step="0.05" value="1"></label>
           <label class="range-option"><span>音量 <output id="option-volume-value">35%</output></span><input id="option-volume" type="range" min="0" max="1" step="0.05" value="0.35"></label>
           <label class="replay-file-option"><span>加载短回放</span><input id="option-replay-file" type="file" accept="application/json,.json"></label>
+          <button id="review-guide" class="quiet-button" type="button">重看操作指南</button>
         </aside>
         <aside id="scoreboard" class="scoreboard hidden"><p class="eyebrow">玩家排行 <kbd>TAB</kbd></p><div id="score-rows"></div></aside>
         <div id="feed" class="kill-feed" aria-live="polite"></div>
         <form id="chat" class="chat hidden"><input id="chat-input" maxlength="180" placeholder="Enter 发送消息" autocomplete="off"></form>
         <div id="toast" class="toast" aria-live="polite"></div>
+        <section id="onboarding" class="onboarding hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title" aria-describedby="guide-copy">
+          <div class="guide-card">
+            <p class="eyebrow">FIELD MANUAL <span id="guide-step">01 / 03</span></p>
+            <h2 id="guide-title"></h2>
+            <p id="guide-copy"></p>
+            <div id="guide-keys" class="guide-keys"></div>
+            <small id="guide-note"></small>
+            <div class="guide-actions"><button id="guide-skip" class="quiet-button" type="button">跳过指南</button><button id="guide-back" class="quiet-button" type="button">上一步</button><button id="guide-next" class="start-button" type="button">下一步</button></div>
+          </div>
+        </section>
 
         <div id="start-screen" class="overlay">
           <div class="lobby-card compact">
@@ -120,7 +132,7 @@
               <button data-map="glass" type="button"><span class="map-swatch glass-swatch"></span><b>SUNVALE</b><small>阳谷果园</small></button>
               <button data-map="ember" type="button"><span class="map-swatch ember-swatch"></span><b>REDLEAF</b><small>赤叶遗迹</small></button>
             </div>
-            <div class="lobby-actions"><button id="start" class="start-button" type="button">进入战场 <span>↗</span></button><button id="watch-room" class="watch-button" type="button">观战</button><small id="lobby-status">正在查找开放房间…</small></div>
+            <div class="lobby-actions"><button id="start" class="start-button" type="button">进入战场 <span>↗</span></button><button id="watch-room" class="watch-button" type="button">观战</button><small id="invite-note" class="invite-note hidden"></small><small id="lobby-status" role="status" aria-live="polite">正在查找开放房间…</small><button id="create-room" class="quiet-button hidden" type="button">改为创建新房间</button></div>
             <div class="open-rooms"><div class="rooms-heading"><span>开放房间</span><button id="refresh-rooms" type="button">刷新</button></div><div id="room-list" class="room-list"><span class="empty-rooms">暂时没有开放房间</span></div>
               <section class="lobby-chat" aria-label="大厅聊天">
                 <div class="lobby-chat-heading"><span>GLOBAL RELAY</span><small>大厅频道</small></div>
@@ -129,13 +141,13 @@
               </section>
               <div class="lobby-network"><div class="network-kicker"><i></i><span>FIELD RELAY</span><b>ONLINE</b></div><div class="lobby-stats"><span><small>MAPS</small><strong>03</strong></span><span><small>MODES</small><strong>06</strong></span><span><small>PILOTS</small><strong>24</strong></span></div><p>选择同一战区或使用房间码加入好友。普通房间最多 20 人，感染模式最多 24 人。</p></div>
             </div>
-            <p class="control-hint">WASD 移动 · 左键射击 · 右键跳跃 · Q/E 技能 · 升级点选后 Space · 1–0/N/M/H/J/L 切枪 · F 蓄力 · Y 副射击 · 进入传送门可瞬移</p>
+            <p class="control-hint">WASD 移动 · 左键射击 · 右键跳跃 · Q/E 技能 · 升级点选后 Space · 1–0/N/M/H/J/L 切枪 · Y 副射击 · 进入传送门可瞬移<br>自由混战每局 8 分钟；死亡保留当局成长，下一局统一从 1 级开始。</p>
           </div>
         </div>
       </section>
     </section>
     <footer class="game-footer"><span>MORROW FIELDS · ORIGINAL ONLINE ARENA</span><span>WASD / 左键射击 · 右键跳跃 · 1–0 / N / M / H / J / L · R 装填 · Y 副射击</span></footer>
   </main>
-  <script src="/arena/game.js?v=91"></script>
+  <script src="/arena/game.js?v=101"></script>
 </body>
 </html>

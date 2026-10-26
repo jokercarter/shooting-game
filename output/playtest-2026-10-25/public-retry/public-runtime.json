@@ -1,0 +1,14 @@
+{
+  "started_at": "2026-10-25T05:31:09.2332417Z",
+  "bind_address": "127.0.0.1",
+  "port": 8084,
+  "local_url": "http://127.0.0.1:8084/arena/",
+  "public_url": "https://compact-westminster-alpine-economics.trycloudflare.com/arena/",
+  "health_status": 200,
+  "arena_status": 200,
+  "server_pid": 108400,
+  "tunnel_pid": 107660,
+  "server_log": "C:\\Users\\90631\\Desktop\\shooting game\\output\\playtest-2026-10-25\\public-retry\\public-runtime-server.out.log",
+  "tunnel_log": "C:\\Users\\90631\\Desktop\\shooting game\\output\\playtest-2026-10-25\\public-retry\\public-runtime-tunnel.out.log",
+  "stopped_at": "2026-10-25T05:38:40.0883374Z"
+}

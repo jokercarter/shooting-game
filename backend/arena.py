@@ -54,6 +54,8 @@ ROOM_CAPACITIES = {
 }
 MAX_PLAYERS = max(ROOM_CAPACITIES.values())
 RESPAWN_DELAY = 6.0
+FFA_ROUND_SECONDS = 8 * 60
+RECONNECT_GRACE_SECONDS = 30.0
 SPAWN_INVINCIBILITY = 5.0
 ITEM_RESPAWN = 45.0
 RESOURCE_RESPAWN = 38.0
@@ -1076,6 +1078,10 @@ class Player:
     # respawn window; these two fields drive the client-side topple animation.
     death_at: float = 0
     corpse_angle: float = 0
+    feedback_id: int = 0
+    hit_feedback: dict | None = None
+    death_feedback: dict | None = None
+    resume_token: str = field(default_factory=lambda: secrets.token_urlsafe(24), repr=False)
     invincible_until: float = field(default_factory=lambda: time.monotonic() + SPAWN_INVINCIBILITY)
     switch_until: float = 0
     portal_cooldown_until: float = 0
@@ -1122,10 +1128,32 @@ class Room:
     last_private_broadcast: float = 0
     public_roster_signature: tuple | None = None
     tick_profile_samples: list = field(default_factory=list, repr=False)
+    round_number: int = 1
+    match_recorded: bool = False
 
 
 rooms: dict[str, Room] = {}
 rooms_lock = asyncio.Lock()
+# Opaque, short-lived reconnect tickets are unrelated to browser profile ids.
+# Disconnected pilots are absent from the live roster and room capacity.
+reconnect_sessions: dict[str, tuple[Room, Player, float]] = {}
+
+
+def _prune_reconnects(now: float):
+    for token, (_, _, expires) in tuple(reconnect_sessions.items()):
+        if expires <= now:
+            reconnect_sessions.pop(token, None)
+    while len(reconnect_sessions) > 256:
+        reconnect_sessions.pop(next(iter(reconnect_sessions)))
+
+
+def _round_players(room: Room):
+    """Include temporarily disconnected humans in settlement and round resets."""
+    players = dict(room.players)
+    for saved_room, player, expires in reconnect_sessions.values():
+        if saved_room is room and expires > time.monotonic():
+            players.setdefault(player.id, player)
+    return players.values()
 lobby_sockets: set[WebSocket] = set()
 lobby_messages = deque(maxlen=30)
 lobby_message_id = 0
@@ -1472,6 +1500,12 @@ def player_view(player: Player, map_id: str, viewer_id: str | None = None,
         "captures": player.captures, "souls": player.souls,
         "carried_flag": player.carried_flag,
         "ammo": ammo or {},
+        "hit_feedback": ({"id": player.hit_feedback["id"],
+                          "direction": player.hit_feedback["direction"],
+                          "age": round(max(0, now - player.hit_feedback["at"]), 3)}
+                         if owner_view and player.hit_feedback and
+                         now - player.hit_feedback["at"] < .6 else None),
+        "death_feedback": player.death_feedback if owner_view else None,
     }
 
 
@@ -1595,6 +1629,10 @@ def room_view(room: Room, viewer_id: str | None = None, snapshot: dict | None = 
                        for player in room.players.values()]
     return {
         "type": "state", "room": room.code, "map": room.map_id, "mode": room.mode,
+        "round_number": room.round_number,
+        "round_elapsed": round(max(0, now - room.started_at), 1),
+        "round_remaining": (round(max(0, FFA_ROUND_SECONDS - (now - room.started_at)), 1)
+                            if room.mode == "normal" else None),
         "mode_name": MODES[room.mode]["name"], "capacity": room_capacity(room.mode),
         "state_interval_ms": snapshot["state_interval_ms"], "team_scores": snapshot["team_scores"],
         "flags": snapshot["flags"], "winner": snapshot["winner"],
@@ -1773,6 +1811,10 @@ def _fall_into_water(room: Room, player: Player, now: float):
         return
     drop_flag(room, player, now)
     player.deaths += 1
+    store.bump(player.profile_id, "deaths")
+    player.feedback_id += 1
+    player.death_feedback = {"id": player.feedback_id, "cause": "river",
+                             "killer": None, "weapon": None}
     if room.mode == "duel":
         player.lives -= 1
         if player.lives <= 0:
@@ -1995,7 +2037,9 @@ def _spawn_projectile(room: Room, player: Player, now: float):
         player.aim_started = now
 
 
-def _hurt(room: Room, source: Player, target: Player, amount: float, now: float, *, allow_self=False):
+def _hurt(room: Room, source: Player, target: Player, amount: float, now: float, *,
+          allow_self=False, weapon: str | None = None,
+          hit_origin: tuple[float, float] | None = None):
     self_hit = source.id == target.id
     if (target.invincible_until > now or target.jump_until > now or
             target.dead_until > now or amount <= 0 or
@@ -2015,6 +2059,13 @@ def _hurt(room: Room, source: Player, target: Player, amount: float, now: float,
     dealt = max(1, int(round(amount - absorbed)))
     hp_before = target.hp
     target.hp -= dealt
+    # Only a coarse direction reaches the victim, never source coordinates.
+    target.feedback_id += 1
+    origin_x, origin_y = hit_origin or (source.x, source.y)
+    dx, dy = origin_x - target.x, origin_y - target.y
+    direction = ("right" if dx >= 0 else "left") if abs(dx) >= abs(dy) else ("bottom" if dy >= 0 else "top")
+    target.hit_feedback = {"id": target.feedback_id, "at": now,
+                           "direction": None if self_hit else direction}
     if not self_hit and _can_damage(room, source, target):
         # Experience follows the health that was really taken, so a huge
         # overkill hit cannot farm more XP than the pilot actually lost.
@@ -2022,6 +2073,10 @@ def _hurt(room: Room, source: Player, target: Player, amount: float, now: float,
     if target.hp > 0:
         return
     target.deaths += 1
+    target.death_feedback = {"id": target.feedback_id,
+                             "cause": "self" if self_hit else "combat",
+                             "killer": source.name,
+                             "weapon": weapon or source.weapon}
     store.bump(target.profile_id, "deaths")
     if not self_hit:
         source.kills += 1
@@ -2111,9 +2166,13 @@ def _reset_player_loadout(player: Player):
 
 def _record_match(room: Room):
     """Write one finished match per human pilot so the daily board has data."""
-    for player in room.players.values():
-        if player.is_bot or player.is_zombie or not player.profile_id:
+    if not room.winner or room.match_recorded:
+        return
+    room.match_recorded = True
+    for player in _round_players(room):
+        if player.is_bot or not player.profile_id:
             continue
+        store.save_progress(player.profile_id, player.level, int(player.xp))
         store.record_match(player.profile_id, room.mode, room.map_id,
                            player.kills, player.deaths, player.score, player.level)
 
@@ -2121,6 +2180,10 @@ def _record_match(room: Room):
 def _reset_round(room: Room, map_id: str, now: float):
     """Start a fresh round in the same room after a completed match vote."""
     _record_match(room)
+    room.round_number += 1
+    room.match_recorded = False
+    room.public_roster_signature = None
+    room.last_private_broadcast = 0
     room.map_id = map_id if map_id in MAPS else "tidal"
     room.winner = None
     room.map_votes.clear()
@@ -2137,7 +2200,11 @@ def _reset_round(room: Room, map_id: str, now: float):
     _make_pickups(room)
     _make_resources(room)
     placed = []
-    for player in room.players.values():
+    for player in _round_players(room):
+        player.level = 1
+        player.xp = 0
+        player.stat_points = 0
+        player.upgrades = dict.fromkeys(UPGRADES, 0)
         player.x, player.y = safe_spawn(room.map_id, placed)
         placed.append(player)
         player.hp = max_health(player)
@@ -2148,6 +2215,13 @@ def _reset_round(room: Room, map_id: str, now: float):
         player.lives = 5 if room.mode == "duel" else 0
         player.carried_flag = None
         player.dead_until = 0
+        player.death_at = 0
+        player.corpse_angle = 0
+        player.death_feedback = player.hit_feedback = None
+        player.is_zombie = player.is_bot and room.mode == "zombie_coop"
+        player.hp = max_health(player)
+        player.shield_until = player.jump_until = 0
+        player.next_dash = player.portal_cooldown_until = 0
         player.invincible_until = now + SPAWN_INVINCIBILITY
         player.move_x = player.move_y = 0
         player.firing = player.aiming = player.alternate_fire = False
@@ -2190,6 +2264,7 @@ def _respawn_player(room: Room, player: Player, now: float):
     """Clear the corpse and re-materialise the pilot on a fresh legal spot."""
     player.dead_until = 0
     player.death_at = 0
+    player.hit_feedback = player.death_feedback = None
     player.x, player.y = safe_spawn(room.map_id, [p for p in room.players.values() if p.id != player.id])
     player.portal_cooldown_until = 0
     player.hp = max_health(player)
@@ -2267,7 +2342,9 @@ def _blast(room: Room, projectile: dict, now: float):
             if projectile.get("knockback", 0):
                 _apply_knockback(room, target, projectile["x"], projectile["y"],
                                  projectile["knockback"] * scale, now, source)
-            _hurt(room, source, target, projectile["damage"] * scale, now, allow_self=self_hit)
+            _hurt(room, source, target, projectile["damage"] * scale, now,
+                  allow_self=self_hit, weapon=projectile.get("weapon", source.weapon),
+                  hit_origin=(projectile["x"], projectile["y"]))
 
 
 def _steer(room: Room, projectile: dict, dt: float):
@@ -2320,7 +2397,8 @@ def _impact(room: Room, projectile: dict, now: float, target: Player | None = No
             # Shotgun pellets lose damage with range, matching the reference
             # weapon's per-range falloff while retaining the original spread.
             amount *= max(.1, 1 - projectile["falloff"] * distance / 160)
-        _hurt(room, source, target, amount, now)
+        _hurt(room, source, target, amount, now, weapon=projectile["weapon"],
+              hit_origin=(target.x - projectile.get("vx", 0), target.y - projectile.get("vy", 0)))
     elif projectile.get("blast", 0):
         _blast(room, projectile, now)
 
@@ -2577,6 +2655,18 @@ def _collect_resources(room: Room, now: float):
             break
 
 
+def _check_round_end(room: Room, now: float):
+    """FFA needs a real finish so voting, settlement and fair resets can happen."""
+    if room.mode == "normal" and not room.winner and now - room.started_at >= FFA_ROUND_SECONDS:
+        ranked = sorted(room.players.values(), key=lambda p: p.score, reverse=True)
+        room.winner = (ranked[0].id if ranked and
+                       (len(ranked) == 1 or ranked[0].score > ranked[1].score) else "draw")
+    if room.winner:
+        _record_match(room)
+        if not room.map_vote_deadline:
+            room.map_vote_deadline = now + 15
+
+
 async def run_room(room: Room):
     previous = time.monotonic()
     next_tick = previous
@@ -2605,8 +2695,7 @@ async def run_room(room: Room):
             room.winner = room.winner or "zombies"
         if room.mode == "zombie_coop" and now - room.started_at >= 600:
             room.winner = room.winner or "humans"
-        if room.winner and not room.map_vote_deadline:
-            room.map_vote_deadline = now + 15
+        _check_round_end(room, now)
         if room.winner and _complete_map_vote(room, now):
             await broadcast(room)
         if room.winner:
@@ -2635,6 +2724,7 @@ async def run_room(room: Room):
             _collect_resources(room, now)
             _update_flags(room, now)
             _advance_projectiles(room, dt, now)
+        _check_round_end(room, now)
         simulation_ms = (time.perf_counter() - tick_work_started) * 1000
         state_interval = _room_state_interval(len(humans))
         if next_state_broadcast <= 0:
@@ -2755,13 +2845,19 @@ async def arena_socket(socket: WebSocket):
     player = None
     room = None
     spectator_id = None
+    allow_resume = True
     try:
         hello = await asyncio.wait_for(socket.receive_json(), timeout=12)
         if not isinstance(hello, dict) or hello.get("type") != "join":
             await socket.close(code=1008)
             return
         spectator_mode = bool(hello.get("spectator"))
-        requested = "".join(c for c in str(hello.get("room", "")).upper() if c.isalnum())[:8]
+        raw_room = str(hello.get("room", "")).strip().upper()
+        if raw_room and (not raw_room.isascii() or not raw_room.isalnum() or len(raw_room) > 8):
+            await socket.send_json({"type": "error", "code": "room_invalid", "message": "Invalid room code."})
+            await socket.close(code=1008)
+            return
+        requested = raw_room
         map_id = hello.get("map", "tidal")
         if map_id not in MAPS:
             map_id = "tidal"
@@ -2769,19 +2865,32 @@ async def arena_socket(socket: WebSocket):
         if mode_id not in MODES:
             mode_id = "normal"
         async with rooms_lock:
+            _prune_reconnects(time.monotonic())
             if spectator_mode and not requested:
-                await socket.send_json({"type": "error", "message": "Enter a room code to spectate."})
+                await socket.send_json({"type": "error", "code": "room_required", "message": "Enter a room code to spectate."})
                 await socket.close(code=1008)
                 return
             code = requested or _new_code()
             room = rooms.get(code)
+            token = hello.get("resume_token")
+            saved = reconnect_sessions.get(token) if isinstance(token, str) else None
+            resuming = bool(not spectator_mode and saved and saved[0].code == requested and
+                            (room is None or room is saved[0]))
+            if resuming:
+                room, player, _ = reconnect_sessions.pop(token)
+                rooms[code] = room
+            if requested and not room:
+                await socket.send_json({"type": "error", "code": "room_missing",
+                                        "message": "That room is no longer open."})
+                await socket.close(code=1008)
+                return
             if spectator_mode:
                 if not room:
-                    await socket.send_json({"type": "error", "message": "That room is no longer open."})
+                    await socket.send_json({"type": "error", "code": "room_missing", "message": "That room is no longer open."})
                     await socket.close(code=1008)
                     return
                 if room.winner:
-                    await socket.send_json({"type": "error", "message": "This match has ended."})
+                    await socket.send_json({"type": "error", "code": "match_ended", "message": "This match has ended."})
                     await socket.close(code=1008)
                     return
                 spectator_id = "spectator-" + secrets.token_hex(4)
@@ -2789,6 +2898,11 @@ async def arena_socket(socket: WebSocket):
                 if not room.task or room.task.done():
                     room.task = asyncio.create_task(run_room(room))
             else:
+                if room and room.winner and not resuming:
+                    await socket.send_json({"type": "error", "code": "match_ended",
+                                            "message": "This match has ended."})
+                    await socket.close(code=1008)
+                    return
                 created = room is None
                 if not room:
                     room = rooms[code] = Room(code=code, map_id=map_id, mode=mode_id)
@@ -2798,7 +2912,10 @@ async def arena_socket(socket: WebSocket):
                 humans = [p for p in room.players.values() if not p.is_bot]
                 capacity = room_capacity(room.mode)
                 if len(humans) >= capacity:
-                    await socket.send_json({"type": "error", "message": "This room is full."})
+                    if resuming:
+                        reconnect_sessions[player.resume_token] = (room, player, time.monotonic() + RECONNECT_GRACE_SECONDS)
+                        player = None
+                    await socket.send_json({"type": "error", "code": "room_full", "message": "This room is full."})
                     await socket.close(code=1008)
                     return
                 spawn_x, spawn_y = safe_spawn(room.map_id, room.players.values())
@@ -2810,12 +2927,18 @@ async def arena_socket(socket: WebSocket):
                         requested_skin in PLAYER_SKINS else "wayfinder")
                 profile_id = store.profile_id(hello.get("client_id"))
                 stored = store.touch(profile_id, _clean_name(hello.get("name")))
-                player = Player(
-                    id=secrets.token_urlsafe(7), name=_clean_name(hello.get("name")),
-                    profile_id=profile_id,
-                    x=spawn_x, y=spawn_y, skin=skin,
-                    hue=hue, team=team, lives=5 if room.mode == "duel" else 0,
-                )
+                if not resuming:
+                    player = Player(
+                        id=secrets.token_urlsafe(7), name=_clean_name(hello.get("name")),
+                        profile_id=profile_id,
+                        x=spawn_x, y=spawn_y, skin=skin,
+                        hue=hue, team=team, lives=5 if room.mode == "duel" else 0,
+                    )
+                else:
+                    stored = store.load(player.profile_id)
+                    player.last_input = time.monotonic()
+                    player.move_x = player.move_y = 0
+                    player.firing = player.aiming = player.alternate_fire = False
                 room.players[player.id] = player
                 room.sockets[player.id] = socket
                 if created:
@@ -2831,6 +2954,7 @@ async def arena_socket(socket: WebSocket):
             await socket.send_json({
                 **room_view(room, player.id), "type": "welcome", "id": player.id,
                 "maps": MAPS, "weapons": WEAPONS, "profile": stored,
+                "resume_token": player.resume_token,
             })
         await broadcast(room)
         while True:
@@ -2839,6 +2963,9 @@ async def arena_socket(socket: WebSocket):
                 continue
             now = time.monotonic()
             kind = message.get("type")
+            if kind == "leave":
+                allow_resume = False
+                break
             if spectator_mode:
                 if kind == "ping" and _finite(message.get("sent")):
                     await socket.send_json({"type": "pong", "sent": message["sent"]})
@@ -2907,7 +3034,14 @@ async def arena_socket(socket: WebSocket):
                         room.task.cancel()
         elif room and player:
             async with rooms_lock:
+                # A completed round settles before anybody leaves its roster.
+                _record_match(room)
                 drop_flag(room, player, time.monotonic())
+                if allow_resume:
+                    player.move_x = player.move_y = 0
+                    player.firing = player.aiming = player.alternate_fire = False
+                    reconnect_sessions[player.resume_token] = (room, player, time.monotonic() + RECONNECT_GRACE_SECONDS)
+                    _prune_reconnects(time.monotonic())
                 room.players.pop(player.id, None)
                 room.sockets.pop(player.id, None)
                 humans = [p for p in room.players.values() if not p.is_bot]
@@ -2923,3 +3057,4 @@ async def arena_socket(socket: WebSocket):
                     rooms.pop(room.code, None)
                     if room.task and not room.task.done():
                         room.task.cancel()
+                    room.task = None

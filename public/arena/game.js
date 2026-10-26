@@ -2,7 +2,7 @@
   const canvas = document.querySelector('#arena');
   // ``ctx`` is reassigned while the static terrain is baked into an
   // offscreen buffer, so every drawer keeps drawing into the live one.
-  let ctx = canvas.getContext('2d');
+  let ctx = canvas.getContext('2d',{alpha:false,desynchronized:true});
   const W = 960, H = 640;
   // Keep gameplay coordinates stable while giving the canvas a dense backing
   // store. This removes the soft browser upscale on Retina/high-DPI screens
@@ -36,6 +36,8 @@
   const TERRAIN_CACHE=!new URLSearchParams(location.search).has('terrain-off');
   const miniMap = document.querySelector('#mini-map'), miniCtx = miniMap.getContext('2d');
   const ui = {
+    guide: document.querySelector('#onboarding'), guideTitle: document.querySelector('#guide-title'), guideCopy: document.querySelector('#guide-copy'), guideKeys: document.querySelector('#guide-keys'), guideStep: document.querySelector('#guide-step'), guideNote: document.querySelector('#guide-note'), guideNext: document.querySelector('#guide-next'), guideBack: document.querySelector('#guide-back'), guideSkip: document.querySelector('#guide-skip'),
+    deathReceipt: document.querySelector('#death-receipt'), damageDirection: document.querySelector('#damage-direction'), createRoom: document.querySelector('#create-room'), inviteNote: document.querySelector('#invite-note'),
     start: document.querySelector('#start-screen'), startButton: document.querySelector('#start'), watchRoom: document.querySelector('#watch-room'),
     restart: document.querySelector('#restart'), name: document.querySelector('#nickname'),
     room: document.querySelector('#room-code'), status: document.querySelector('#lobby-status'),
@@ -151,12 +153,14 @@
   // Static terrain buffer state. Declared with the other runtime state because
   // asset callbacks and the settings panel may poke it before the draw loop
   // is ever reached.
-  let terrainCanvas=null, terrainReady=false, terrainKey='', terrainPass=false, obstacleReady=false, obstacleFlipTimer=null;
-  let drawCostMs=0, terrainBuilds=0;
+  let terrainCanvas=null, terrainReady=false, terrainKey='', terrainPass=false, obstacleReady=false, obstacleFlipTimer=null, lightingCanvas=null;
+  let drawCostMs=0, drawFrameMs=0, terrainBuilds=0;
   let debugProjectiles=[], projectiles=[], pickups=[], pickupSpawns=[], resources=[], resourceSpawns=[], previousProjectileIds=new Set(), projectileTrails=new Map(), particles=[], rings=[], muzzles=[], damageNumbers=[], started=false;
   let flags={}, teamScores={'0':0,'1':0}, winner=null;
   let selectedMap='tidal', selectedMode='normal', selectedSkin='wayfinder', selectedUpgrade='vitality', last=0, nextRenderAt=0, stateAt=0, stateIntervalMs=50, startedAt=0, dashReadyAt=0, inputTimer, inputIntervalMs=25, pingTimer, roomTimer, toastTimer, reconnectTimer=null, reconnectAttempts=0, intentionalSocketClose=false;
   let latestFeedId=0, rackSignature='', lastHudAt=0, fpsFrames=0, fpsWindowAt=performance.now(), fpsValue=0, pingValue=0, resultShown=false;
+  let roundNumber=null, roundRemaining=null, roundElapsed=0, animationFrameId=null, joinError='', damageTimer=null, lastHitId=null;
+  const renderSamples=[];
   const groundPatterns=new Map(), MAX_RENDER_FPS=100, MAX_PARTICLES=520, MAX_RINGS=110, MAX_MUZZLES=48, HUD_INTERVAL_MS=100, PICKUP_RESPAWN_SECONDS=45, RESOURCE_RESPAWN_SECONDS=38;
   // The Figma visual kit is exported as small standalone SVG sprites at
   // build time.  Canvas keeps the procedural fallback below so a slow or
@@ -225,7 +229,7 @@
   const wsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena';
   const lobbyWsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena/lobby';
   const testReconnectMode=new URLSearchParams(location.search).has('test-reconnect');
-  const PRIVATE_PLAYER_FIELDS=['id','energy','owned_weapons','upgrades','ammo','level','xp','xp_to_next','stat_points'];
+  const PRIVATE_PLAYER_FIELDS=['id','energy','owned_weapons','upgrades','ammo','level','xp','xp_to_next','xp_start','stat_points','hit_feedback','death_feedback'];
   function privatePlayerFields(player){
     if(!player)return null;
     const fields={};for(const key of PRIVATE_PLAYER_FIELDS)if(Object.prototype.hasOwnProperty.call(player,key))fields[key]=player[key];
@@ -234,6 +238,60 @@
   function hasOwnerPrivateFields(player){
     return Number.isFinite(player?.energy)&&Array.isArray(player.owned_weapons)&&
       player.upgrades&&typeof player.upgrades==='object'&&player.ammo&&typeof player.ammo==='object';
+  }
+  const GUIDE_KEY='morrow-fields-guide-v1';
+  let guideSeen=false, guideIndex=0, guideThenJoin=false, guideReturnFocus=null;
+  try{guideSeen=localStorage.getItem(GUIDE_KEY)==='done'}catch{}
+  const GUIDE_STEPS=[
+    {title:'移动、瞄准，先打出第一枪',copy:'用 WASD 移动，鼠标控制准星，按住左键开火。右键可以跳跃闪避。',keys:['W A S D · 移动','鼠标左键 · 射击','鼠标右键 · 跃闪']},
+    {title:'走近补给，换一把顺手的武器',copy:'走到地面武器上自动拾取；用数字键、滚轮或右侧武器栏切换。弹药用尽时寻找同种补给，按 R 装填。',keys:['走近武器 · 自动拾取','数字键 / 滚轮 · 换枪','R · 装填']},
+    {title:'用技能脱困，把属性点花出去',copy:'能量足够时按 Q 开护幕、E 修复。升级会获得 2 个属性点：点选右侧属性，再按 Space 确认。死亡保留当局成长，下一局从 1 级开始。',keys:['Q / E · 技能','点选属性 → Space','每局重练 · 战绩保留']},
+  ];
+  function guideIsOpen(){return !ui.guide.classList.contains('hidden')}
+  function renderGuide(){
+    const step=GUIDE_STEPS[guideIndex];ui.guideTitle.textContent=step.title;ui.guideCopy.textContent=step.copy;
+    ui.guideStep.textContent='0'+(guideIndex+1)+' / 03';ui.guideKeys.replaceChildren();
+    for(const label of step.keys){const key=document.createElement('kbd');key.textContent=label;ui.guideKeys.append(key)}
+    ui.guideBack.disabled=guideIndex===0;
+    ui.guideNext.textContent=guideIndex===2?(guideThenJoin?'准备好了，进入战场':'完成'):'下一步';
+    ui.guideNote.textContent=started?'对局仍在继续，阅读时角色停止操作。':'阅读时尚未入场，可以放心了解操作。';
+  }
+  function openGuide(thenJoin=false){
+    guideIndex=0;guideThenJoin=thenJoin;guideReturnFocus=document.activeElement;
+    keys.clear();mouse.down=false;touch.moveX=touch.moveY=0;
+    ui.optionsPanel.classList.add('hidden');ui.settings.setAttribute('aria-expanded','false');
+    ui.guide.classList.remove('hidden');renderGuide();ui.guideNext.focus();if(started)sendInput();
+  }
+  function closeGuide(){
+    guideSeen=true;try{localStorage.setItem(GUIDE_KEY,'done')}catch{}
+    ui.guide.classList.add('hidden');const enter=guideThenJoin;guideThenJoin=false;
+    if(enter)join();else if(started)canvas.focus();else guideReturnFocus?.focus();
+  }
+  ui.guideNext.addEventListener('click',()=>{if(guideIndex<2){guideIndex++;renderGuide()}else closeGuide()});
+  ui.guideBack.addEventListener('click',()=>{if(guideIndex>0){guideIndex--;renderGuide()}});
+  ui.guideSkip.addEventListener('click',closeGuide);
+  document.querySelector('#review-guide').addEventListener('click',()=>openGuide());
+  ui.guide.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){event.preventDefault();closeGuide();return}
+    if(event.key==='Tab'){
+      const buttons=[...ui.guide.querySelectorAll('button:not(:disabled)')],first=buttons[0],last=buttons.at(-1);
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+    }
+  });
+  function combatFeedback(player){
+    const hit=player?.hit_feedback;
+    if(hit&&hit.id!==lastHitId){
+      lastHitId=hit.id;clearTimeout(damageTimer);ui.damageDirection.classList.add('hidden');
+      if(['left','right','top','bottom'].includes(hit.direction)&&hit.age<.6){
+        ui.damageDirection.dataset.direction=hit.direction;
+        ui.damageDirection.textContent={left:'◀ 左侧受击',right:'右侧受击 ▶',top:'▲ 上方受击',bottom:'▼ 下方受击'}[hit.direction];
+        ui.damageDirection.classList.remove('hidden');
+        damageTimer=setTimeout(()=>ui.damageDirection.classList.add('hidden'),Math.max(0,(.6-hit.age)*1000));
+      }
+    }
+    const death=player?.death_feedback;
+    ui.deathReceipt.textContent=!player?.dead?'':death?.cause==='river'?'落入河流':death?.cause==='self'?'被自己的 '+(weapons[death.weapon]?.name||death.weapon||'爆炸')+' 击倒':death?'被 '+(death.killer||'对手')+' 用 '+(weapons[death.weapon]?.name||death.weapon||'武器')+' 击倒':'等待战斗回执…';
   }
   function appendLobbyChat(message){
     const list=ui.lobbyChatList;if(!list)return;
@@ -286,6 +344,14 @@
   const mapDef=()=>maps[map]||{accent:'#55d7c1',ground:'#10252a',obstacles:[],cover:[]};
   const localPlayer=()=>players.find(p=>p.id===id);
   if(testReconnectMode){
+    window.__morrowTestHandle=message=>handle(message);
+    window.__morrowTestPerformance=(since=0)=>{
+      const samples=renderSamples.filter(sample=>sample.at>=since),n=samples.length;
+      const summarize=values=>{values.sort((a,b)=>a-b);return {p50:values[Math.floor(values.length*.5)]||0,p95:values[Math.min(values.length-1,Math.floor(values.length*.95))]||0,max:values.at(-1)||0}};
+      return {frames:n,fps:n>1?(n-1)*1000/(samples.at(-1).at-samples[0].at):0,
+        draw_ms:summarize(samples.map(s=>s.draw_ms)),frame_ms:summarize(samples.slice(1).map((s,i)=>s.at-samples[i].at)),
+        terrain_builds:terrainBuilds,viewport:[W,H],dpr:devicePixelRatio};
+    };
     window.__morrowTestLocalPlayer=()=>{const p=localPlayer();return p?{id:p.id,x:p.x,y:p.y,weapon:p.weapon,owned_weapons:p.owned_weapons,ammo:p.ammo,energy:p.energy,armor:p.armor,hp:p.hp,max_hp:p.max_hp,dead:p.dead,knocked:p.knocked,jumping:p.jumping,state_interval_ms:stateIntervalMs,input_interval_ms:inputIntervalMs,render_target_fps:MAX_RENDER_FPS,camera_x:cameraX,camera_y:cameraY,own_death_at:ownDeathAt,now:performance.now()}:null};
     window.__morrowTestSetLocal=(patch={})=>{const p=localPlayer();if(!p)return null;for(const k in patch){if(k==='x'||k==='y')continue;p[k]=patch[k];}return {hp:p.hp,armor:p.armor,max_armor:p.max_armor,max_hp:p.max_hp};};
     window.__morrowTestSpawnProjectile=(opts={})=>{
@@ -660,7 +726,7 @@
     resultShown=true;
     const teamWinner=(mode==='team_dm'||mode==='ctf')&&(winnerId==='0'||winnerId==='1');
     const victor=players.find(p=>p.id===winnerId);
-    ui.matchResultTitle.textContent=teamWinner?(winnerId==='0'?'潮汐队获胜':'赤焰队获胜'):(victor?victor.name+' 获胜':'战斗结束');
+    ui.matchResultTitle.textContent=winnerId==='draw'?'本局平局':teamWinner?(winnerId==='0'?'潮汐队获胜':'赤焰队获胜'):(victor?victor.name+' 获胜':'战斗结束');
     ui.matchResultSubtitle.textContent=modeName+' · '+players.length+' 名玩家';
     ui.matchResultRows.replaceChildren();
     [...players].sort((a,b)=>b.score-a.score).slice(0,8).forEach((player,index)=>{
@@ -755,6 +821,17 @@
   }
   function applyState(message){
     lastStateMessage=message;
+    if(Number.isFinite(message.round_number)&&message.round_number!==roundNumber){
+      if(roundNumber!==null){
+        privatePlayer=null;privateVotedMap=null;latestFeedId=0;lastHitId=null;ownDeathAt=0;
+        clearTimeout(damageTimer);ui.damageDirection.classList.add('hidden');
+        projectileTrails.clear();previousProjectileIds.clear();particles=[];rings=[];damageNumbers=[];
+        ui.state.textContent=spectatorMode?'SPECTATING':'LIVE FRONTIER';toast('新一局开始 · 等级与加点已重置');
+      }
+      roundNumber=message.round_number;
+    }
+    roundRemaining=Number.isFinite(message.round_remaining)?message.round_remaining:null;
+    roundElapsed=Number(message.round_elapsed)||0;
     if(Object.prototype.hasOwnProperty.call(message,'voted_map'))privateVotedMap=message.voted_map;
     if(message.map&&maps[message.map])map=message.map;room=message.room||room;
     if(message.mode)mode=message.mode;
@@ -796,7 +873,7 @@
       if(Number.isFinite(x)&&Number.isFinite(y)){burst(x,y,'#ff746c',displaySettings.lowEffects?2:5,'energy_sniper');if(damage>0&&!displaySettings.lowEffects){const style=damageNumberStyle(player.weapon||old.weapon||'pulse',damage,player.id===id);damageNumbers.push({x,y,value:damage,life:680,max:680,color:style.color,size:style.size});if(damageNumbers.length>80)damageNumbers.splice(0,damageNumbers.length-80)}}
       if(player.id===id){damageFlash=Math.min(.72,damageFlash+.44);triggerCameraShake(3.2)}
     }
-    updateWeaponRack(me);
+    combatFeedback(me);
     if(me)for(const weapon of ownedWeapons(me))if(!previousOwned.has(weapon)&&weapon!=='pulse'){
       toast('拾取了 '+(weapons[weapon]?.name||weapon));
     }
@@ -858,10 +935,11 @@
     if(rings.length>MAX_RINGS)rings.splice(0,rings.length-MAX_RINGS);
     if(muzzles.length>MAX_MUZZLES)muzzles.splice(0,muzzles.length-MAX_MUZZLES);
     previousProjectileIds=nextIds;projectiles=message.projectiles||[];pickups=message.pickups||[];pickupSpawns=nextSpawns;resources=message.resources||[];resourceSpawns=nextResourceSpawns;stateAt=performance.now();
-    updateFeed(message.feed);updateScoreboard();syncHud();
+    updateFeed(message.feed);
   }
   function applyPrivateState(message){
     if(!message)return;
+    const wasDead=localPlayer()?.dead;
     if(Array.isArray(message.players)){
       const previousById=new Map(players.map(player=>[player.id,player]));
       players=message.players.map(player=>({...previousById.get(player.id),...player}));
@@ -872,11 +950,14 @@
     const index=players.findIndex(player=>player.id===privatePlayer.id);
     if(index>=0)players[index]={...players[index],...privatePlayer};
     else players.push(privatePlayer);
+    if(localPlayer()?.dead&&!wasDead)ownDeathAt=performance.now();
     if(lastStateMessage?.winner)renderMapVote({...lastStateMessage,voted_map:privateVotedMap});
-    updateWeaponRack(localPlayer());syncHud();
+    combatFeedback(localPlayer());
   }
-  function finishDisconnected(){
-    started=false;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(inputTimer);clearInterval(pingTimer);resetLobbyHud();document.body.classList.remove('in-match','spectator-mode');ui.start.classList.remove('hidden');ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;ui.status.textContent='连接已断开。可以重新接入房间。';ui.state.textContent='LINK LOST';ui.copyRoom.classList.add('hidden');reconnectAttempts=0;
+  let resumeToken=null;
+  function finishDisconnected(reason='连接已断开，请检查网络后重新接入房间。'){
+    started=false;cancelAnimationFrame(animationFrameId);animationFrameId=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(inputTimer);clearInterval(pingTimer);resetLobbyHud();document.body.classList.remove('in-match','spectator-mode');ui.start.classList.remove('hidden');ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;ui.status.textContent=reason;ui.state.textContent='LINK LOST';ui.copyRoom.classList.add('hidden');reconnectAttempts=0;
+    clearTimeout(damageTimer);ui.damageDirection.classList.add('hidden');connectLobbyChat();
   }
   function scheduleReconnect(){
     if(intentionalSocketClose||!room){finishDisconnected();return}
@@ -886,12 +967,14 @@
     const attempt=reconnectAttempts++;
     if(attempt>=6){finishDisconnected();ui.status.textContent='重连失败，请检查网络后重新进入房间。';return}
     const delay=Math.min(5000,500*Math.pow(2,attempt));
+    ui.state.textContent='RECONNECTING';
     ui.status.textContent='连接中断，'+(delay/1000).toFixed(1)+' 秒后重连（'+(attempt+1)+'/6）…';
     clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>{reconnectTimer=null;if(started){ui.room.value=room;join(true)}},delay);
   }
   function join(reconnecting=false){
     if(started&&!reconnecting)return;
-    if(!reconnecting){clearTimeout(reconnectTimer);reconnectTimer=null;reconnectAttempts=0;intentionalSocketClose=false}
+    joinError='';ui.createRoom.classList.add('hidden');
+    if(!reconnecting){clearTimeout(reconnectTimer);reconnectTimer=null;reconnectAttempts=0;intentionalSocketClose=false;resumeToken=null}
     ensureAudio();
     ui.startButton.disabled=true;if(ui.watchRoom)ui.watchRoom.disabled=true;ui.status.textContent=spectatorMode?'正在接入观战频道…':'正在接入中继网络…';
     if(lobbySocket){const previous=lobbySocket;lobbySocket=null;previous.close()}
@@ -900,14 +983,15 @@
     if(testReconnectMode){
       window.__morrowTestDisconnect=()=>{intentionalSocketClose=false;currentSocket.close()};
     }
-    socket.onopen=()=>{reconnectAttempts=0;intentionalSocketClose=false;send({type:'join',client_id:CLIENT_ID,name:ui.name.value,room:ui.room.value,map:selectedMap,mode:selectedMode,skin:selectedSkin,spectator:spectatorMode})};
+    socket.onopen=()=>{intentionalSocketClose=false;send({type:'join',client_id:CLIENT_ID,resume_token:reconnecting?resumeToken:null,name:ui.name.value,room:ui.room.value,map:selectedMap,mode:selectedMode,skin:selectedSkin,spectator:spectatorMode})};
     socket.onmessage=e=>{let message;try{message=JSON.parse(e.data)}catch{return}handle(message)};
     socket.onerror=()=>{if(socket===currentSocket)ui.status.textContent='中继网络暂时不可用。正在重试…'};
     socket.onclose=()=>{
       if(socket!==currentSocket)return;
+      if(joinError){ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;connectLobbyChat();return}
       if(started&&!intentionalSocketClose){clearInterval(inputTimer);clearInterval(pingTimer);scheduleReconnect();return}
       if(started)finishDisconnected();
-      else {ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false}
+      else {ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;joinError='无法连接游戏服务，请检查网络后重试。';ui.status.textContent=joinError;connectLobbyChat()}
       intentionalSocketClose=false;
     };
   }
@@ -921,8 +1005,7 @@
   function renderProfileCard(profile){
     if(!ui.profileLine||!profile)return;
     const games=Number(profile.matches)||0;
-    if(!games)return;
-    ui.profileLine.textContent='累计 '+games+' 场 · 击杀 '+(Number(profile.kills)||0)+' · 等级 '+(Number(profile.level)||1);
+    ui.profileLine.textContent='累计 '+games+' 场 · 击杀 '+(Number(profile.kills)||0)+' · 历史最高单局等级 '+(Number(profile.level)||1);
     ui.profileLine.classList.remove('hidden');
   }
   async function loadProfileCard(){
@@ -936,6 +1019,8 @@
   loadProfileCard();
   function handle(message){
     if(message.type==='welcome'){
+      reconnectAttempts=0;resumeToken=message.resume_token||null;roundNumber=null;lastHitId=null;
+      cancelAnimationFrame(animationFrameId);animationFrameId=null;clearInterval(pingTimer);
       id=message.id;spectatorMode=Boolean(message.spectator);renderProfileCard(message.profile);maps=message.maps||{};weapons=message.weapons||{};map=message.map||'tidal';room=message.room;
       privatePlayer=null;privateVotedMap=Object.prototype.hasOwnProperty.call(message,'voted_map')?message.voted_map:null;lastStateMessage=null;
       winner=null;resultShown=false;pingValue=0;damageFlash=0;hitConfirm=0;cameraKickX=0;cameraKickY=0;spectatorId=null;replayFrames=[];ui.matchResult?.classList.add('hidden');cameraShake=0;screenShake=0;explosionFlash=0;weaponRecoil.clear();projectileTrails.clear();previousProjectileIds.clear();projectiles=[];particles=[];rings=[];muzzles=[];damageNumbers=[];resources=[];resourceSpawns=[];
@@ -945,14 +1030,20 @@
       history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(room));
       ui.state.textContent=spectatorMode?'SPECTATING':'LIVE FRONTIER';ui.status.textContent=spectatorMode?'正在观战 '+room:'已接入 '+room;
       ui.copyRoom.querySelector('b').textContent=room;clearInterval(roomTimer);
-      clearInterval(inputTimer);inputTimer=null;updateInputInterval();pingTimer=setInterval(sendPing,2000);requestAnimationFrame(loop);toast(spectatorMode?'已进入观战频道 '+room:'已接入房间 '+room);
+      clearInterval(inputTimer);inputTimer=null;updateInputInterval();pingTimer=setInterval(sendPing,2000);syncHud();updateScoreboard();animationFrameId=requestAnimationFrame(loop);canvas.focus();toast(spectatorMode?'已进入观战频道 '+room:'已接入房间 '+room);
     }else if(message.type==='state')applyState(message);
     else if(message.type==='private')applyPrivateState(message);
     else if(message.type==='pong'&&Number.isFinite(message.sent))pingValue=Math.max(0,Math.round(performance.now()-message.sent));
-    else if(message.type==='error'){ui.status.textContent=message.message;ui.startButton.disabled=false;if(started&&reconnectAttempts>0){reconnectAttempts=6;intentionalSocketClose=true;socket?.close()}}
+    else if(message.type==='error'){
+      joinError={room_full:'房间已满，请稍后重试，或创建一个新房间。',room_missing:'这个房间已关闭，请向朋友获取新邀请，或创建新房间。',match_ended:'这局已经结束，请等待朋友开始下一局后重试。',room_required:'请输入朋友的房间码后再观战。',room_invalid:'房间码格式不正确，请重新复制朋友的邀请链接。'}[message.code]||message.message||'接入失败，请稍后重试。';
+      if(started)finishDisconnected(joinError);else ui.status.textContent=joinError;
+      ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;
+      ui.createRoom.classList.toggle('hidden',!ui.room.value.trim());intentionalSocketClose=true;socket?.close();
+    }
   }
   function sendInput(){
     if(!started||spectatorMode)return;
+    if(guideIsOpen()){send({type:'input',x:0,y:0,fire:false,aiming:false,alt_fire:false});return}
     const dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+touch.moveX;
     const dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+touch.moveY;
     const length=Math.hypot(dx,dy),scale=length>1?1/length:1;
@@ -1015,7 +1106,8 @@
     if(ui.armor)ui.armor.style.width=Math.max(0,Math.min(100,(p.armor||0)/(p.max_armor||100)*100))+'%';
     if(ui.energy)ui.energy.style.width=Math.max(0,Math.min(100,(p.energy??0)))+'%';
     ui.deathBanner.classList.toggle('hidden',!p.dead);
-    if(p.dead)ui.deathStatus.textContent='重启倒计时 '+Math.ceil(p.respawn_in||0)+' 秒'+(spectatorTarget?' · 观战 '+spectatorTarget.name+' · [ ] 切换':'');
+    if(p.dead)ui.deathStatus.textContent='复活倒计时 '+Math.ceil(p.respawn_in||0)+' 秒'+(spectatorTarget?' · 观战 '+spectatorTarget.name+' · [ ] 切换':'');
+    combatFeedback(p);
     ui.score.textContent=String(p.score||0).padStart(4,'0');ui.kills.textContent=p.kills||0;ui.deaths.textContent=p.deaths||0;
     // ---- progression HUD: level, XP bar and unspent stat points -----------
     const level=Math.max(1,Number(p.level)||1);
@@ -1060,7 +1152,8 @@
     ui.info.textContent=switchRemaining>.02?'切换中 '+switchRemaining.toFixed(1)+'s · '+weaponInfo:weaponInfo;
 
     const now=performance.now();ui.dash.style.width=Math.max(0,Math.min(100,100-(dashReadyAt-now)/18))+'%';
-    const elapsed=Math.floor((replayMode?replayElapsed:now-startedAt)/1000);
+    const elapsed=replayMode?Math.floor(replayElapsed/1000):Math.max(0,Math.ceil(roundRemaining!==null?roundRemaining:roundElapsed));
+    ui.timer.title=roundRemaining!==null?'本局剩余时间':'本局已进行时间';
     ui.timer.textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');
   }
   // ===== Scene art system ==================================================
@@ -2620,6 +2713,13 @@
     rings.forEach(effect=>drawPixelExplosion(effect,dt));rings=rings.filter(r=>r.life>0);
   }
   function drawSceneLighting(){
+    // These screen-space gradients never move. Rasterise them once per backing
+    // resolution instead of re-running two full-screen gradients every frame.
+    if(lightingCanvas&&lightingCanvas.width===canvas.width&&lightingCanvas.height===canvas.height){
+      ctx.drawImage(lightingCanvas,0,0,W,H);return;
+    }
+    lightingCanvas=document.createElement('canvas');lightingCanvas.width=canvas.width;lightingCanvas.height=canvas.height;
+    const live=ctx;ctx=lightingCanvas.getContext('2d');ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
     // Screen-space grade: a warm key light from the upper left, a cool edge
     // falloff, and a soft vignette. It unifies terrain and props without
     // touching world-space colours or collision.
@@ -2636,6 +2736,7 @@
     ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
     ctx.globalAlpha=.12;ctx.strokeStyle='#f6e7a8';ctx.lineWidth=1;ctx.strokeRect(8.5,8.5,W-17,H-17);
     ctx.restore();
+    ctx=live;ctx.drawImage(lightingCanvas,0,0,W,H);
   }
   function ensureMinimapStatic(){
     const mw=miniMap.width,mh=miniMap.height,key=map+'|'+mw+'x'+mh;
@@ -2730,7 +2831,7 @@
       ctx=live;terrainPass=false;
     }
     terrainKey=map+'|'+(obstacleReady?'1':'0');
-    terrainReady=true;terrainBuilds+=1;terrainBuilds+=1;
+    terrainReady=true;terrainBuilds+=1;
   }
   function drawTerrain(){
     const key=map+'|'+(obstacleReady?'1':'0');
@@ -2761,7 +2862,7 @@
     ctx.fillStyle='#edf4d5';ctx.beginPath();ctx.arc(0,0,3,0,Math.PI*2);ctx.fill();ctx.restore();
     drawPickupSpawns();drawResourceSpawns();drawFlags();drawPickups();drawResources();if(!displaySettings.lowEffects)drawMuzzles(dt);for(const projectile of projectiles)if(visibleRect(projectile.x-24,projectile.y-24,48,48,100))drawProjectile(projectile);for(const projectile of debugProjectiles){projectile.age+=dt;projectile.x+=projectile.vx*dt;projectile.y+=projectile.vy*dt;drawProjectile(projectile);}debugProjectiles=debugProjectiles.filter(projectile=>projectile.age<projectile.total_life);for(const p of players)drawPilot(p);if(!displaySettings.lowEffects)drawDamageNumbers(dt);
     drawParticles(dt);ctx.restore();drawSceneLighting();drawMinimap();
-    drawCostMs=drawCostMs*.9+(performance.now()-drawStarted)*.1;
+    drawFrameMs=performance.now()-drawStarted;drawCostMs=drawCostMs*.9+drawFrameMs*.1;
     if(explosionFlash>0){
       ctx.fillStyle='rgba(255,166,74,'+Math.min(.28,explosionFlash*.34)+')';ctx.fillRect(-32,-32,W+64,H+64);
       if(explosionFlash>.46){ctx.fillStyle='rgba(255,244,190,'+Math.min(.14,(explosionFlash-.46)*.24)+')';ctx.fillRect(-32,-32,W+64,H+64)}
@@ -2771,21 +2872,22 @@
     ctx.restore();
   }
   function loop(now){
-    if(!started)return;
+    if(!started){animationFrameId=null;return}
     if(!nextRenderAt||now>=nextRenderAt){
       const dt=Math.min(.04,Math.max(0,(now-last)/1000));last=now;
       const renderInterval=1000/MAX_RENDER_FPS;
       nextRenderAt=nextRenderAt?nextRenderAt+renderInterval:now+renderInterval;
       while(nextRenderAt<=now)nextRenderAt+=renderInterval;
-      updatePerf(now);if(now-lastHudAt>=HUD_INTERVAL_MS){syncHud();lastHudAt=now}draw(dt);
+      updatePerf(now);if(now-lastHudAt>=HUD_INTERVAL_MS){syncHud();updateScoreboard();lastHudAt=now}draw(dt);
+      if(testReconnectMode){renderSamples.push({at:now,draw_ms:drawFrameMs});if(renderSamples.length>1000)renderSamples.shift()}
     }
-    requestAnimationFrame(loop);
+    animationFrameId=requestAnimationFrame(loop);
   }
   async function refreshRooms(){
     try{
       const response=await fetch('/api/arena/rooms',{cache:'no-store'});if(!response.ok)throw Error();
       const active=await response.json(),list=document.querySelector('#room-list');list.replaceChildren();
-      if(!active.length){const empty=document.createElement('span');empty.className='empty-rooms';empty.textContent='暂时没有开放房间';list.append(empty);return}
+      if(!active.length){const empty=document.createElement('span');empty.className='empty-rooms';empty.textContent='暂时没有开放房间';list.append(empty);if(!joinError&&!ui.startButton.disabled)ui.status.textContent='房间码留空即可创建新战场，或打开朋友的邀请链接。';return}
       for(const item of active){
         const button=document.createElement('button');button.type='button';button.className='room-card';
         const code=document.createElement('b');code.textContent=item.code;const name=document.createElement('small');name.textContent=item.map_name;
@@ -2795,8 +2897,8 @@
           selectedMap=item.map;map=item.map;document.querySelectorAll('[data-map]').forEach(card=>card.classList.toggle('active',card.dataset.map===item.map));
           ui.status.textContent='已选择 '+item.code;draw();
         };list.append(button);
-      }ui.status.textContent='输入相同房间码，和朋友加入同一战区';
-    }catch{ui.status.textContent='当前服务暂不支持公开房间列表'}
+      }if(!joinError)ui.status.textContent='输入相同房间码，和朋友加入同一战区';
+    }catch{if(!joinError)ui.status.textContent='房间列表暂时不可用，可以使用朋友的邀请链接'}
   }
   async function loadMapPreviews(){
     try{
@@ -2817,7 +2919,7 @@
     selectedSkin=skin.id;ui.skinCycle.dataset.skin=skin.id;ui.skinName.textContent=skin.name;
     ui.skinCycle.setAttribute('aria-label','切换角色外观，当前'+skin.name);
   }
-  const params=new URLSearchParams(location.search);if(params.has('room'))ui.room.value=params.get('room').slice(0,8);
+  const params=new URLSearchParams(location.search);if(params.has('room')){ui.room.value=params.get('room').slice(0,8).toUpperCase();ui.inviteNote.textContent='将加入朋友的房间 '+ui.room.value;ui.inviteNote.classList.remove('hidden')}
   document.querySelectorAll('[data-ability]').forEach(button=>button.addEventListener('click',()=>{
     const ability=button.dataset.ability;send({type:'ability',ability});
     if(ability==='dash')dashReadyAt=performance.now()+1800;
@@ -2840,10 +2942,12 @@
   ui.confirmUpgrade.addEventListener('click',()=>buyUpgrade(selectedUpgrade));
   selectUpgrade(selectedUpgrade);
   document.querySelectorAll('[data-map]').forEach(button=>button.addEventListener('click',()=>{selectedMap=button.dataset.map;map=selectedMap;document.querySelectorAll('[data-map]').forEach(item=>item.classList.toggle('active',item===button));draw()}));
-  ui.startButton.addEventListener('click',()=>{spectatorMode=false;join()});ui.watchRoom?.addEventListener('click',()=>{if(!ui.room.value.trim()){ui.status.textContent='请输入房间码后再观战';return}spectatorMode=true;join()});ui.restart.addEventListener('click',()=>{intentionalSocketClose=true;clearTimeout(reconnectTimer);socket?.close();location.href='/arena/'});
+  const leaveRoom=()=>{intentionalSocketClose=true;clearTimeout(reconnectTimer);send({type:'leave'});socket?.close();location.href='/arena/'};
+  ui.startButton.addEventListener('click',()=>{spectatorMode=false;if(!guideSeen)openGuide(true);else join()});ui.watchRoom?.addEventListener('click',()=>{if(!ui.room.value.trim()){ui.status.textContent='请输入房间码后再观战';return}spectatorMode=true;join()});ui.restart.addEventListener('click',leaveRoom);
+  ui.createRoom.addEventListener('click',()=>{ui.room.value='';joinError='';ui.createRoom.classList.add('hidden');ui.inviteNote.classList.add('hidden');const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);ui.status.textContent='房间码留空，进入战场即可创建新房间。';ui.startButton.focus()});
   ui.matchResultReplay?.addEventListener('click',downloadReplay);
   ui.matchResultAgain?.addEventListener('click',()=>{if(started&&winner)send({type:'vote_map',map:selectedMap});else{intentionalSocketClose=true;clearTimeout(reconnectTimer);socket?.close();location.href='/arena/'}});
-  ui.matchResultLobby?.addEventListener('click',()=>{intentionalSocketClose=true;clearTimeout(reconnectTimer);socket?.close();location.href='/arena/'});
+  ui.matchResultLobby?.addEventListener('click',leaveRoom);
   ui.replayToggle?.addEventListener('click',toggleReplayPause);
   ui.replaySeek?.addEventListener('input',event=>seekReplay(event.target.value));
   ui.replayExit?.addEventListener('click',stopReplay);
@@ -2861,6 +2965,7 @@
     else{mouse.x=point.x;mouse.y=point.y}
   }
   canvas.addEventListener('pointerdown',event=>{
+    if(guideIsOpen())return;
     canvas.focus();const rect=canvas.getBoundingClientRect(),x=(event.clientX-rect.left)*W/rect.width,y=(event.clientY-rect.top)*H/rect.height;
     if(event.pointerType==='touch'){event.preventDefault();if(x<W*.43&&touch.moveId===null){touch.moveId=event.pointerId;touch.originX=event.clientX;touch.originY=event.clientY;touch.moveX=touch.moveY=0}else{touch.aimId=event.pointerId;mouse.x=x;mouse.y=y;mouse.down=true}canvas.setPointerCapture(event.pointerId)}
     else if(event.button===0){mouse.x=x;mouse.y=y;mouse.down=true}
@@ -2880,6 +2985,7 @@
     if(started)sendInput();
   });
   window.addEventListener('keydown',event=>{
+    if(guideIsOpen())return;
     if(event.target instanceof HTMLInputElement)return;const key=event.key.toLowerCase();
     if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','tab','y'].includes(key)||key in KEY_WEAPONS)event.preventDefault();
     if(key==='enter'&&started&&document.activeElement!==document.querySelector('#chat-input')){event.preventDefault();document.querySelector('#chat').classList.remove('hidden');mouse.down=false;document.querySelector('#chat-input').focus();return}

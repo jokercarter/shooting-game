@@ -1,4 +1,5 @@
 :root{color-scheme:dark;--ink:#f2edd8;--muted:#bdc5a7;--line:#68724e;--leaf:#b8d568;--rust:#ca8750;--panel:#172017e8}
+:root{--guide-panel:#1d252e;--guide-edge:#d8bd70;--danger:#ffb19a}
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden}
 body{background:#222c1d;color:var(--ink);font:13px/1.45 "Segoe UI",Arial,sans-serif;background-image:radial-gradient(ellipse at 50% -35%,#596a3d 0,#27331f 50%,#1a241a 100%)}
@@ -455,3 +456,55 @@ body.in-match .minimap-panel{opacity:1}
 .upgrade-grid{min-width:0}
 .upgrade-box button{min-width:0;overflow:hidden;white-space:nowrap}
 @media(max-width:760px){.loadout-panel{width:150px}}
+
+/* The field manual opens before deployment; reviewing it blocks game input. */
+.onboarding{position:absolute;inset:0;z-index:80;display:grid;place-items:center;padding:24px;background:rgba(8,17,26,.88)}
+.onboarding.hidden,.damage-direction.hidden,#create-room.hidden,#invite-note.hidden{display:none}
+.guide-card{width:min(510px,100%);max-height:100%;overflow:auto;padding:28px;background:var(--guide-panel);border:2px solid var(--guide-edge);border-radius:10px;box-shadow:8px 8px 0 #080e18}
+.guide-card .eyebrow{display:flex;justify-content:space-between;color:var(--guide-edge);font-size:11px}
+.guide-card h2{margin:18px 0 12px;font-size:24px;line-height:1.3;color:#fff6dc}
+.guide-card p:not(.eyebrow){font-size:15px;line-height:1.85;color:#e1e6eb}
+.guide-card>small{display:block;margin-top:18px;color:#b7c5ce;font-size:12px}
+.guide-keys{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}
+.guide-keys kbd{padding:8px 10px;border:1px solid #6a7a8b;border-bottom-width:3px;border-radius:5px;background:#111923;color:#f8e9b0;font:700 12px/1.5 "Segoe UI",sans-serif}
+.guide-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:22px}
+.guide-actions .start-button{margin-left:auto;padding:10px 16px;min-height:42px;font-size:13px}
+.guide-actions .quiet-button{font-size:12px;padding:9px 10px}
+.guide-actions button:disabled{opacity:.4;cursor:default}
+button:focus-visible{outline:3px solid #f8df91;outline-offset:3px}
+.invite-note{color:#f2d78d;font-size:12px;grid-column:1/-1;overflow-wrap:anywhere}
+#lobby-status{overflow-wrap:anywhere;min-height:1.5em}
+#create-room{grid-column:1/-1;justify-self:start}
+.profile-line{overflow-wrap:anywhere;line-height:1.6}
+.lobby-card>.lobby-advanced-row{flex-wrap:wrap}
+.death-banner{max-width:calc(100% - 40px);overflow-wrap:anywhere}
+#death-receipt{display:block;margin:5px 0;font-size:14px;color:#ffe2af}
+.death-banner>small:last-child{opacity:.75;font-size:10px}
+.damage-direction{position:absolute;z-index:12;pointer-events:none;padding:6px 10px;border:2px solid var(--danger);border-radius:5px;background:#3e1c22e8;color:#ffe2d8;font-size:12px;font-weight:700;box-shadow:0 0 14px #f04b3544}
+.damage-direction[data-direction="left"]{left:16px;top:48%}
+.damage-direction[data-direction="right"]{right:185px;top:48%}
+.damage-direction[data-direction="top"]{left:50%;top:14px;transform:translateX(-50%)}
+.damage-direction[data-direction="bottom"]{left:50%;bottom:92px;transform:translateX(-50%)}
+@media(max-width:760px){.onboarding{padding:12px}.guide-card{padding:18px}.guide-card h2{font-size:20px}.guide-card p:not(.eyebrow){font-size:13px}.guide-actions{gap:5px}.guide-actions .start-button{font-size:12px;padding:8px}.damage-direction[data-direction="right"]{right:16px}}
+
+/* Lobby · right column must not be pushed wider by its own chat form. */
+.open-rooms{min-width:0;overflow:hidden}
+.lobby-chat{min-width:0}
+.lobby-chat-heading{min-width:0;gap:6px;white-space:nowrap}
+.lobby-chat-heading span{overflow:hidden;text-overflow:ellipsis}
+.lobby-chat-form{display:flex;gap:4px;min-width:0}
+.lobby-chat-form input{flex:1;min-width:0}
+.lobby-chat-form button{flex:0 0 auto}
+/* "Back to lobby" only makes sense once you have left it. */
+body:not(.in-match) #restart{display:none}
+
+/* Lobby · right column must not be pushed wider by its own chat form. */
+.open-rooms{min-width:0;overflow:hidden}
+.lobby-chat{min-width:0}
+.lobby-chat-heading{min-width:0;gap:6px;white-space:nowrap}
+.lobby-chat-heading span{overflow:hidden;text-overflow:ellipsis}
+.lobby-chat-form{display:flex;gap:4px;min-width:0}
+.lobby-chat-form input{flex:1;min-width:0}
+.lobby-chat-form button{flex:0 0 auto}
+/* "Back to lobby" only makes sense once you have left it. */
+body:not(.in-match) #restart{display:none}

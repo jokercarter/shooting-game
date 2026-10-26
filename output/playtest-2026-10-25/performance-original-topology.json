@@ -1,0 +1,141 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\90631\\Desktop\\shooting game\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "--grep",
+      "@performance"
+    ],
+    "configFile": "C:\\Users\\90631\\Desktop\\shooting game\\playwright.config.ts",
+    "rootDir": "C:/Users/90631/Desktop/shooting game/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/90631/Desktop/shooting game/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "C:/Users/90631/Desktop/shooting game/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "output/playtest-2026-10-25/performance-original-topology.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": {
+      "env": {
+        "ARENA_DB": "C:\\Users\\90631\\Desktop\\shooting game\\tmp\\browser-tests.sqlite3"
+      },
+      "command": "\"C:\\Users\\90631\\Desktop\\shooting game\\.venv\\Scripts\\python.exe\" -B -m uvicorn backend.arena_public:app --host 127.0.0.1 --port 4174",
+      "url": "http://127.0.0.1:4174/health",
+      "reuseExistingServer": false,
+      "timeout": 30000
+    }
+  },
+  "suites": [
+    {
+      "title": "arena.spec.ts",
+      "file": "arena.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "ten-player crowd keeps the private HUD patch responsive @performance",
+          "ok": true,
+          "tags": [
+            "performance"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8522,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "ten-player performance: {\"frames\":300,\"fps\":60.0028094960968,\"draw_ms\":{\"p50\":1.100000023841858,\"p95\":2.699999988079071,\"max\":4.800000011920929},\"frame_ms\":{\"p50\":16.699999999999818,\"p95\":16.700000000000728,\"max\":16.800000000000182},\"terrain_builds\":2,\"viewport\":{\"width\":1440,\"height\":1000},\"dpr\":1,\"browser\":\"153.0.8010.12\",\"sample_seconds\":5,\"humans\":10,\"peer_topology\":\"ten sockets in one renderer\"}\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-25T05:33:21.416Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "ten-player-performance.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJmcmFtZXMiOiAzMDAsCiAgImZwcyI6IDYwLjAwMjgwOTQ5NjA5NjgsCiAgImRyYXdfbXMiOiB7CiAgICAicDUwIjogMS4xMDAwMDAwMjM4NDE4NTgsCiAgICAicDk1IjogMi42OTk5OTk5ODgwNzkwNzEsCiAgICAibWF4IjogNC44MDAwMDAwMTE5MjA5MjkKICB9LAogICJmcmFtZV9tcyI6IHsKICAgICJwNTAiOiAxNi42OTk5OTk5OTk5OTk4MTgsCiAgICAicDk1IjogMTYuNzAwMDAwMDAwMDAwNzI4LAogICAgIm1heCI6IDE2LjgwMDAwMDAwMDAwMDE4MgogIH0sCiAgInRlcnJhaW5fYnVpbGRzIjogMiwKICAidmlld3BvcnQiOiB7CiAgICAid2lkdGgiOiAxNDQwLAogICAgImhlaWdodCI6IDEwMDAKICB9LAogICJkcHIiOiAxLAogICJicm93c2VyIjogIjE1My4wLjgwMTAuMTIiLAogICJzYW1wbGVfc2Vjb25kcyI6IDUsCiAgImh1bWFucyI6IDEwLAogICJwZWVyX3RvcG9sb2d5IjogInRlbiBzb2NrZXRzIGluIG9uZSByZW5kZXJlciIKfQ=="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "807b057befe601acf025-026fdb1a6190e3bc4443",
+          "file": "arena.spec.ts",
+          "line": 130,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-25T05:33:19.842Z",
+    "duration": 12589.664,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
