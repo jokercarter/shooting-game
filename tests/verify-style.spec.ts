@@ -1,5 +1,9 @@
 import {test,expect} from '@playwright/test';
 
+test.beforeEach(async({context})=>{
+ await context.addInitScript(()=>localStorage.setItem('morrow-fields-guide-v1','done'));
+});
+
 test('flat restyle renders without errors and uses the flat palette',async({page})=>{
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));

@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test:backend": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-Backend.ps1",
+    "test:backend": "node tools/test_backend.mjs",
+    "test:syntax": "node tools/check_syntax.mjs",
     "test:browser": "playwright test",
+    "test:functional": "playwright test --grep-invert @performance",
+    "test:performance": "playwright test --grep @performance",
     "verify:deploy": "python tools/verify_arena_deploy_config.py"
   },
   "devDependencies": {

@@ -18,8 +18,9 @@ export default defineConfig({
     headless: true,
     viewport: {width: 1440, height: 1000},
   },
-  reporter: [['list'], ['json', {outputFile: 'output/browser-test-results.json'}]],
+  reporter: [['list'], ['json', {outputFile: process.env.ARENA_BROWSER_REPORT || 'output/browser-test-results.json'}]],
   webServer: {
+    env: {ARENA_DB: join(process.cwd(),'tmp','browser-tests.sqlite3')},
     command: `${commandPython} -B -m uvicorn backend.arena_public:app --host 127.0.0.1 --port 4174`,
     url: 'http://127.0.0.1:4174/health',
     reuseExistingServer: false,

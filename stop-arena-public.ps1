@@ -1,6 +1,8 @@
+param([string]$StatePath = 'output\arena-validation\public-runtime.json')
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
-$statePath = Join-Path $PSScriptRoot 'output\arena-validation\public-runtime.json'
+$statePath = if ([System.IO.Path]::IsPathRooted($StatePath)) { $StatePath } else { Join-Path $PSScriptRoot $StatePath }
 if (!(Test-Path -LiteralPath $statePath)) {
   Write-Host 'No recorded Morrow Fields public runtime.'
   exit 0

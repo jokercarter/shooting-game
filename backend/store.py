@@ -2,8 +2,9 @@
 
 Accounts here are deliberately lightweight: a browser keeps a random client id
 in localStorage and that id *is* the account. The only things worth persisting
-are the numbers a player would be annoyed to lose -- level, xp, kills, deaths,
-matches -- plus a short match history for the daily leaderboard.
+are career kills, deaths, completed matches and the best single-round level/XP,
+plus a short match history for the daily leaderboard. Historical level/XP never
+grant combat attributes in a new round. Existing records seed the personal best.
 
 The store fails open: if the database cannot be opened (read-only disk, tests,
 CI), every call degrades to a no-op so the game keeps running.
@@ -145,6 +146,7 @@ def bump(pid: str, column: str, amount: int = 1) -> None:
 
 
 def save_progress(pid: str, level: int, xp: int) -> None:
+    """Keep a personal best; starting a new round can never lower it."""
     if not pid:
         return
     conn = _connect()
@@ -153,8 +155,9 @@ def save_progress(pid: str, level: int, xp: int) -> None:
     try:
         with _lock, conn:
             conn.execute(
-                "UPDATE profiles SET level=?, xp=?, updated_at=? WHERE id=?",
-                (level, xp, time.time(), pid),
+                "UPDATE profiles SET level=?, xp=?, updated_at=? WHERE id=? "
+                "AND (level < ? OR (level = ? AND xp < ?))",
+                (level, xp, time.time(), pid, level, level, xp),
             )
     except sqlite3.Error:
         pass
@@ -177,8 +180,8 @@ def record_match(pid: str, mode: str, map_id: str, kills: int, deaths: int,
                 (pid, mode, map_id, kills, deaths, score, level, time.time()),
             )
             conn.execute(
-                "UPDATE profiles SET matches=matches+1, updated_at=? WHERE id=?",
-                (time.time(), pid),
+                "UPDATE profiles SET matches=matches+1, level=MAX(level, ?), updated_at=? WHERE id=?",
+                (level, time.time(), pid),
             )
     except sqlite3.Error:
         pass

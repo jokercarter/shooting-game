@@ -1,5 +1,11 @@
 import {test,expect} from '@playwright/test';
 
+// Baseline combat tests use an experienced pilot. First-run onboarding is
+// exercised explicitly in friend-playtest.spec.ts with a fresh browser state.
+test.beforeEach(async({context})=>{
+ await context.addInitScript(()=>localStorage.setItem('morrow-fields-guide-v1','done'));
+});
+
 test('public arena controls, crowd-aware room state and mobile lobby',async({page,request})=>{
  const pageErrors:string[]=[];
  page.on('pageerror',error=>pageErrors.push(error.message));
@@ -46,6 +52,7 @@ test('public arena controls, crowd-aware room state and mobile lobby',async({pag
 
 test('two local browser windows share one arena room',async({browser,request})=>{
  const context=await browser.newContext();
+ await context.addInitScript(()=>localStorage.setItem('morrow-fields-guide-v1','done'));
  const first=await context.newPage();
  const second=await context.newPage();
  try{
@@ -80,10 +87,12 @@ test('reconnects after a transient network drop',async({page,request})=>{
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
  const room=new URL(page.url()).searchParams.get('room');
  expect(room).toMatch(/^[A-Z0-9]{6}$/);
+ const originalPilot=await page.evaluate(()=>(window as any).__morrowTestLocalPlayer()?.id);
  await page.evaluate(()=>{(window as typeof window & {__morrowTestDisconnect?:()=>void}).__morrowTestDisconnect?.()});
  await expect.poll(async()=>JSON.stringify(await page.evaluate(()=>({reconnects:(window as typeof window & {__morrowTestReconnects?:number}).__morrowTestReconnects||0,closeEvents:(window as typeof window & {__morrowTestCloseEvents?:number}).__morrowTestCloseEvents||0,ignored:(window as typeof window & {__morrowTestIgnoredCloses?:number}).__morrowTestIgnoredCloses||0,branch:(window as typeof window & {__morrowTestCloseBranch?:string}).__morrowTestCloseBranch||''}))),{timeout:7000}).toMatch(/"reconnects":[1-9]/);
  await expect.poll(async()=>page.getByText('LIVE FRONTIER',{exact:true}).isVisible(),{timeout:12000}).toBeTruthy();
  await expect(page.locator('#pilot-count')).toHaveText('1 / 20');
+ expect(await page.evaluate(()=>(window as any).__morrowTestLocalPlayer()?.id)).toBe(originalPilot);
  await page.close();
  await expect.poll(async()=>(await (await request.get('/api/arena/rooms')).json()).length,{timeout:6000}).toBe(0);
 });
@@ -118,7 +127,11 @@ test('missile explosion shake attenuates with distance',async({page})=>{
  await page.getByRole('button',{name:'返回大厅'}).click();
 });
 
-test('ten-player crowd keeps the private HUD patch responsive',async({page,request})=>{
+test('ten-player crowd keeps the private HUD patch responsive @performance',async({page,request},testInfo)=>{
+ const peerSockets:WebSocket[]=[];
+ const browserPeerStress=process.env.ARENA_CROWD_TOPOLOGY==='browser';
+ let remoteOwnerShot=false;
+ try{
  const pageErrors:string[]=[];
  page.on('pageerror',error=>pageErrors.push(error.message));
  await page.goto('/arena/?test-reconnect');
@@ -127,7 +140,7 @@ test('ten-player crowd keeps the private HUD patch responsive',async({page,reque
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
  const room=new URL(page.url()).searchParams.get('room');
  expect(room).toMatch(/^[A-Z0-9]{6}$/);
- await page.evaluate(async(roomCode)=>{
+ if(browserPeerStress)await page.evaluate(async(roomCode)=>{
   const sockets:WebSocket[]=[];
   let ownerId='';
   let ownerShot=false;
@@ -151,6 +164,26 @@ test('ten-player crowd keeps the private HUD patch responsive',async({page,reque
   (window as typeof window & {__crowdSockets?:WebSocket[]}).__crowdSockets=sockets;
   (window as typeof window & {__crowdOwnerShot?:()=>boolean}).__crowdOwnerShot=()=>ownerShot;
  },room!);
+ else{
+  // Other players live on other machines in a real match. Keep synthetic
+  // peers in the Node runner so one renderer does not parse ten clients' traffic.
+  const ownerId=await page.evaluate(()=>(window as any).__morrowTestLocalPlayer()?.id);
+  for(let index=1;index<=9;index++){
+   await new Promise<void>((resolve,reject)=>{
+    const socket=new WebSocket(new URL('/ws/arena',page.url()).href.replace(/^http/,'ws'));
+    peerSockets.push(socket);
+    const timer=setTimeout(()=>reject(new Error('crowd handshake timed out')),10000);
+    socket.onopen=()=>socket.send(JSON.stringify({type:'join',name:`Crowd-${index}`,room,map:'tidal',mode:'normal'}));
+    socket.onmessage=event=>{
+     const message=JSON.parse(String(event.data));
+     if(message.type==='welcome'){clearTimeout(timer);resolve()}
+     if(message.type==='error'){clearTimeout(timer);reject(new Error(message.message))}
+     if(message.type==='state'&&(message.projectiles||[]).some((p:any)=>p.owner===ownerId))remoteOwnerShot=true;
+    };
+    socket.onerror=()=>{clearTimeout(timer);reject(new Error('crowd socket failed'))};
+   });
+  }
+ }
  await expect.poll(async()=>page.locator('#pilot-count').textContent(),{timeout:6000}).toBe('10 / 20');
  await expect.poll(async()=>Number(await page.locator('#energy-fill').evaluate(el=>parseFloat((el as HTMLElement).style.width)||0)),{timeout:4000}).toBeGreaterThan(0);
  await expect(page.locator('#ammo')).toContainText('∞');
@@ -176,20 +209,33 @@ test('ten-player crowd keeps the private HUD patch responsive',async({page,reque
  expect(maxMove).toBeGreaterThan(20);
  const aimX=canvasBox!.x+canvasBox!.width*.72,aimY=canvasBox!.y+canvasBox!.height*.5;
  await page.mouse.move(aimX,aimY);await page.mouse.down();await page.waitForTimeout(1100);await page.mouse.up();
- await expect.poll(async()=>page.evaluate(()=>Boolean((window as typeof window & {__crowdOwnerShot?:()=>boolean}).__crowdOwnerShot?.())),{timeout:4000}).toBeTruthy();
+ await expect.poll(async()=>browserPeerStress?await page.evaluate(()=>Boolean((window as any).__crowdOwnerShot?.())):remoteOwnerShot,{timeout:4000}).toBeTruthy();
  await expect.poll(async()=>page.locator('#score-rows .score-row').count(),{timeout:3000}).toBe(14);
- const crowdFps=await page.evaluate(()=>new Promise<number>(resolve=>{
-  let frames=0;const started=performance.now();
-  const sample=(now:number)=>{frames+=1;if(now-started>=3000)resolve(frames*1000/(now-started));else requestAnimationFrame(sample)};
-  requestAnimationFrame(sample);
- }));
- console.log(`ten-player browser FPS: ${crowdFps.toFixed(1)}`);
- expect(crowdFps).toBeGreaterThanOrEqual(55);
+ const sampleStart=await page.evaluate(()=>performance.now());
+ const profiler=process.env.ARENA_PROFILE_BROWSER==='1'?await page.context().newCDPSession(page):null;
+ if(profiler){await profiler.send('Profiler.enable');await profiler.send('Profiler.start')}
+ await page.waitForTimeout(5000);
+ const performanceReport=await page.evaluate(since=>(window as any).__morrowTestPerformance(since),sampleStart);
+ const environment={...performanceReport,browser:page.context().browser()?.version(),viewport:page.viewportSize(),sample_seconds:5,humans:10,peer_topology:browserPeerStress?'ten sockets in one renderer':'one rendered client plus nine Node peers'};
+ await testInfo.attach('ten-player-performance.json',{body:JSON.stringify(environment,null,2),contentType:'application/json'});
+ console.log('ten-player performance: '+JSON.stringify(environment));
+ if(profiler){
+  const {profile}=await profiler.send('Profiler.stop');
+  await testInfo.attach('browser-cpu-profile.json',{body:JSON.stringify(profile),contentType:'application/json'});
+  const nodes=new Map(profile.nodes.map((n:any)=>[n.id,n]));
+  const counts=new Map<number,number>();
+  for(const id of profile.samples||[])counts.set(id,(counts.get(id)||0)+1);
+  console.log('CPU samples: '+JSON.stringify([...counts].sort((a,b)=>b[1]-a[1]).slice(0,14).map(([id,n])=>({samples:n,...nodes.get(id)?.callFrame}))));
+ }
+ expect(performanceReport.frames).toBeGreaterThan(200);
+ expect(performanceReport.fps).toBeGreaterThanOrEqual(55);
  await page.evaluate(()=>{for(const socket of (window as typeof window & {__crowdSockets?:WebSocket[]}).__crowdSockets||[])socket.close();});
+ for(const socket of peerSockets)socket.close();
  await expect.poll(async()=>(await (await request.get('/api/arena/rooms')).json()).length,{timeout:6000}).toBe(1);
  await page.close();
  await expect.poll(async()=>(await (await request.get('/api/arena/rooms')).json()).length,{timeout:6000}).toBe(0);
  expect(pageErrors).toEqual([]);
+ }finally{for(const socket of peerSockets)socket.close()}
 });
 
 test('display settings persist and live performance status is visible',async({page})=>{

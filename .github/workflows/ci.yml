@@ -1,0 +1,41 @@
+name: Arena checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: npm ci
+      - run: python -m pip install -r requirements.txt
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:syntax
+      - run: npm run build
+      - run: npm run test:backend
+      - run: npm run test:functional
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arena-browser-evidence
+          path: |
+            output/browser-test-results.json
+            test-results/
+            output/playwright/
+          retention-days: 14

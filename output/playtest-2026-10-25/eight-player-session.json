@@ -1,0 +1,36 @@
+{
+  "scope": "synthetic WebSocket clients on this host; not real-player acceptance",
+  "base_url": "http://127.0.0.1:8083",
+  "room": "87CB63",
+  "players": 8,
+  "duration_seconds": 60.0,
+  "python": "3.13.9",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "state_interval_ms": {
+    "samples": 26800,
+    "p50": 15.96,
+    "p95": 32.63,
+    "max": 89.49
+  },
+  "rtt_ms": {
+    "samples": 8889,
+    "p50": 23.12,
+    "p95": 47.65,
+    "max": 114.31
+  },
+  "states_per_pilot": [
+    3355,
+    3354,
+    3353,
+    3352,
+    3350,
+    3349,
+    3348,
+    3347
+  ],
+  "rounds_observed": [
+    1
+  ],
+  "errors": [],
+  "passed": true
+}
