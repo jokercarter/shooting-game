@@ -11,12 +11,12 @@ test('flat restyle renders without errors and uses the flat palette',async({page
 
   // Lobby screenshot.
   await page.goto('/arena/');
-  await expect(page.getByRole('heading',{name:/苔木边境/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:/Mosswood Frontier/})).toBeVisible();
   await page.screenshot({path:'output/playwright/flat-lobby.png',fullPage:true});
 
   // Enter the arena (default map: tidal).
-  await page.getByLabel('玩家名称').fill('FlatVerify');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByLabel('Pilot name').fill('FlatVerify');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   await expect(page.locator('#arena')).toBeVisible();
   await page.waitForTimeout(1200);
@@ -65,7 +65,7 @@ test('flat restyle renders without errors and uses the flat palette',async({page
   // No runtime errors during the restyled render loop.
   expect(pageErrors).toEqual([]);
 
-  await page.getByRole('button',{name:'返回大厅'}).click();
+  await page.getByRole('button',{name:'Back to Lobby'}).click();
 });
 
 test('lobbed grenade draws its throw arc without runtime errors',async({page})=>{
@@ -73,8 +73,8 @@ test('lobbed grenade draws its throw arc without runtime errors',async({page})=>
   page.on('pageerror',error=>pageErrors.push(error.message));
 
   await page.goto('/arena/?test-reconnect');
-  await page.getByLabel('玩家名称').fill('ArcVerify');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByLabel('Pilot name').fill('ArcVerify');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   await page.waitForTimeout(1200);
 
@@ -102,8 +102,8 @@ test('blast feedback shakes the view and leaves rising smoke',async({page})=>{
   page.on('pageerror',error=>pageErrors.push(error.message));
 
   await page.goto('/arena/?test-reconnect');
-  await page.getByLabel('玩家名称').fill('BlastVerify');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByLabel('Pilot name').fill('BlastVerify');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   await page.waitForTimeout(1400);
 
@@ -129,8 +129,8 @@ test('explosion tremor is view-gated and falls off with distance',async ({page})
   page.on('pageerror', error => pageErrors.push(error.message));
 
   await page.goto('/arena/?test-reconnect');
-  await page.getByLabel('玩家名称').fill('TremorVerify');
-  await page.getByRole('button', {name: '进入战场'}).click();
+  await page.getByLabel('Pilot name').fill('TremorVerify');
+  await page.getByRole('button', {name: 'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER', {exact: true})).toBeVisible();
   await page.waitForTimeout(1400);
 

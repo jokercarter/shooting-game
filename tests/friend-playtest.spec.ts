@@ -9,31 +9,31 @@ test('first-run guide precedes deployment, persists and can be reviewed',async({
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/arena/');
-  await page.getByLabel('玩家名称').fill('FirstPilot');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByLabel('Pilot name').fill('FirstPilot');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.locator('#guide-step')).toHaveText('01 / 03');
-  await expect(page.locator('#guide-note')).toContainText('尚未入场');
+  await expect(page.locator('#guide-note')).toContainText('You have not entered yet');
   expect((await (await request.get('/api/arena/rooms')).json()).length).toBe(0);
   await page.screenshot({path:'output/playwright/friends-guide.png'});
-  await page.getByRole('button',{name:'下一步',exact:true}).click();
-  await expect(page.locator('#guide-title')).toContainText('武器');
-  await page.getByRole('button',{name:'上一步'}).click();
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(page.locator('#guide-title')).toContainText('weapon');
+  await page.getByRole('button',{name:'Back'}).click();
   await expect(page.locator('#guide-step')).toHaveText('01 / 03');
-  await page.getByRole('button',{name:'下一步',exact:true}).click();
-  await page.getByRole('button',{name:'下一步',exact:true}).click();
-  await expect(page.locator('#guide-copy')).toContainText('下一局从 1 级开始');
-  await page.getByRole('button',{name:'准备好了，进入战场'}).click();
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(page.locator('#guide-copy')).toContainText('level 1');
+  await page.getByRole('button',{name:'Ready — enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   expect(await page.evaluate(key=>localStorage.getItem(key),guideKey)).toBe('done');
-  await page.getByRole('button',{name:'设置',exact:true}).click();
-  await page.getByRole('button',{name:'重看操作指南'}).click();
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Replay the tutorial'}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.locator('#guide-note')).toContainText('对局仍在继续');
+  await expect(page.locator('#guide-note')).toContainText('The match is still running');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await page.getByRole('button',{name:'返回大厅',exact:true}).first().click();
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByRole('button',{name:'Back to Lobby',exact:true}).first().click();
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   await expect(page.getByRole('dialog')).toBeHidden();
   expect(errors).toEqual([]);
@@ -41,7 +41,7 @@ test('first-run guide precedes deployment, persists and can be reviewed',async({
 
 test('guide can be skipped with keyboard and does not open again',async({page})=>{
   await page.goto('/arena/');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.locator('#guide-next')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.locator('#guide-skip')).toBeFocused();
@@ -54,8 +54,8 @@ test('guide can be skipped with keyboard and does not open again',async({page})=
 test('a friend opens an invitation directly into the hosts room',async({browser,page,request})=>{
   await experienced(page);
   await page.goto('/arena/');
-  await page.getByLabel('玩家名称').fill('Host');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByLabel('Pilot name').fill('Host');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   const room=new URL(page.url()).searchParams.get('room')!;
   const context=await browser.newContext();
@@ -63,10 +63,10 @@ test('a friend opens an invitation directly into the hosts room',async({browser,
   try{
     await experienced(friend);
     await friend.goto('/arena/?room='+room);
-    await expect(friend.getByLabel('房间码')).toHaveValue(room);
+    await expect(friend.getByLabel('Room code')).toHaveValue(room);
     await expect(friend.locator('#invite-note')).toContainText(room);
-    await friend.getByLabel('玩家名称').fill('Friend');
-    await friend.getByRole('button',{name:'进入战场'}).click();
+    await friend.getByLabel('Pilot name').fill('Friend');
+    await friend.getByRole('button',{name:'Enter the arena'}).click();
     await expect(friend.locator('#pilot-count')).toHaveText('2 / 20');
     await expect(page.locator('#pilot-count')).toHaveText('2 / 20');
     const rooms=await (await request.get('/api/arena/rooms')).json();
@@ -77,13 +77,13 @@ test('a friend opens an invitation directly into the hosts room',async({browser,
 test('expired invites explain failure, retain the message and allow a fresh room',async({page})=>{
   await experienced(page);
   await page.goto('/arena/?room=NOPENO');
-  await page.getByRole('button',{name:'进入战场'}).click();
-  await expect(page.locator('#lobby-status')).toContainText('房间已关闭');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
+  await expect(page.locator('#lobby-status')).toContainText('This room has closed');
   await page.waitForTimeout(4800); // the room refresh must not erase the error
-  await expect(page.locator('#lobby-status')).toContainText('房间已关闭');
-  await page.getByRole('button',{name:'改为创建新房间'}).click();
-  await expect(page.getByLabel('房间码')).toHaveValue('');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await expect(page.locator('#lobby-status')).toContainText('This room has closed');
+  await page.getByRole('button',{name:'Create a new room instead'}).click();
+  await expect(page.getByLabel('Room code')).toHaveValue('');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   expect(new URL(page.url()).searchParams.get('room')).not.toBe('NOPENO');
 });
@@ -96,7 +96,7 @@ test('private combat receipts expire and next round replaces the cached build',a
   const maps=Object.fromEntries(definitions.map(({id,...definition}:any)=>[id,definition]));
   let server:any;
   let player:any={id:'local',name:'Pilot',x:750,y:750,hue:'#55caff',skin:'wayfinder',hp:140,max_hp:140,armor:0,max_armor:100,energy:100,weapon:'pulse',owned_weapons:['pulse'],ammo:{pulse:{mag:-1,reserve:-1,reload_remaining:0}},upgrades:{vitality:2,rapid:1},stat_points:3,level:5,xp:500,xp_start:480,xp_to_next:220,score:100,kills:1,deaths:0,angle:0,dead:false,is_bot:false};
-  const state=(extra:any={})=>({type:'state',room:'FRIEND',mode:'normal',mode_name:'自由混战',map:'tidal',round_number:1,round_elapsed:10,round_remaining:470,capacity:20,state_interval_ms:50,players:[player],projectiles:[],feed:[],winner:null,...extra});
+  const state=(extra:any={})=>({type:'state',room:'FRIEND',mode:'normal',mode_name:'Free-for-All',map:'tidal',round_number:1,round_elapsed:10,round_remaining:470,capacity:20,state_interval_ms:50,players:[player],projectiles:[],feed:[],winner:null,...extra});
   await page.routeWebSocket('**/ws/arena',socket=>{
     server=socket;
     socket.onMessage(raw=>{
@@ -105,12 +105,12 @@ test('private combat receipts expire and next round replaces the cached build',a
     });
   });
   await page.goto('/arena/');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.locator('#level-badge')).toHaveText('LV 5');
   player={...player,hp:0,dead:true,dead_for:.5,respawn_in:5,deaths:1,hit_feedback:{id:1,direction:'left',age:0},death_feedback:{id:1,cause:'combat',killer:'Enemy <pilot>',weapon:'flare'}};
   server.send(JSON.stringify(state()));
-  await expect(page.locator('#damage-direction')).toContainText('左侧受击');
-  await expect(page.locator('#death-receipt')).toHaveText('被 Enemy <pilot> 用 Flare Rocket 击倒');
+  await expect(page.locator('#damage-direction')).toContainText('Hit from the left');
+  await expect(page.locator('#death-receipt')).toHaveText('Was taken out by Enemy <pilot> with Flare Rocket');
   await expect(page.locator('#death-banner')).toBeVisible();
   await expect(page.locator('#health-number')).toHaveText('0 / 140');
   await expect(page.locator('#level-badge')).toHaveText('LV 5');
@@ -118,7 +118,7 @@ test('private combat receipts expire and next round replaces the cached build',a
   await expect(page.locator('#damage-direction')).toBeHidden({timeout:2000});
   server.send(JSON.stringify(state({winner:'draw'})));
   await expect(page.locator('#match-result')).toBeVisible();
-  await expect(page.locator('#match-result-title')).toHaveText('本局平局');
+  await expect(page.locator('#match-result-title')).toHaveText('Draw');
   player={...player,hp:100,max_hp:100,dead:false,dead_for:0,respawn_in:0,level:1,xp:0,xp_start:0,xp_to_next:60,stat_points:0,upgrades:{vitality:0,rapid:0},score:0,kills:0,deaths:0,hit_feedback:null,death_feedback:null};
   server.send(JSON.stringify(state({round_number:2,round_remaining:480,round_elapsed:0})));
   await expect(page.locator('#level-badge')).toHaveText('LV 1');
@@ -142,7 +142,7 @@ test('desktop lobby controls stay within their panels',async({page})=>{
       return [...element.children].every(child=>{const r=child.getBoundingClientRect();return r.left>=parent.left-1&&r.right<=parent.right+1});
     });
     expect(fits).toBe(true);
-    await expect(page.getByRole('button',{name:'进入战场'})).toBeInViewport();
+    await expect(page.getByRole('button',{name:'Enter the arena'})).toBeInViewport();
     await page.screenshot({path:`output/playwright/friends-lobby-${viewport.width}.png`});
   }
 });

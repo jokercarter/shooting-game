@@ -62,10 +62,10 @@
   const WEAPON_KEYS = ['pulse','lobber','flame','rotary','flare','prism','seeker','cursor','scatter','rapid_flare','rapid_lobber','healing_wave','energy_sniper','bug'];
   const KEY_WEAPONS = {'1':'pulse','2':'lobber','3':'flame','4':'rotary','5':'flare','6':'prism','7':'seeker','8':'cursor','0':'scatter','n':'rapid_flare','m':'rapid_lobber','h':'healing_wave','j':'energy_sniper','l':'bug'};
   const PILOT_SKINS = [
-    {id:'wayfinder',name:'巡林斥候'},
-    {id:'orchard',name:'阳谷采集者'},
-    {id:'ember',name:'赤叶守卫'},
-    {id:'gear',name:'齿轮信使'},
+    {id:'wayfinder',name:'Grove Scout'},
+    {id:'orchard',name:'Sunvale Harvester'},
+    {id:'ember',name:'Redleaf Warden'},
+    {id:'gear',name:'Gear Courier'},
   ];
   const PILOT_STYLE = {
     wayfinder:{trousers:'#2d3540',headgear:'#28283b',detail:'#d5e3d2',pack:'#364238'},
@@ -243,9 +243,9 @@
   let guideSeen=false, guideIndex=0, guideThenJoin=false, guideReturnFocus=null;
   try{guideSeen=localStorage.getItem(GUIDE_KEY)==='done'}catch{}
   const GUIDE_STEPS=[
-    {title:'移动、瞄准，先打出第一枪',copy:'用 WASD 移动，鼠标控制准星，按住左键开火。右键可以跳跃闪避。',keys:['W A S D · 移动','鼠标左键 · 射击','鼠标右键 · 跃闪']},
-    {title:'走近补给，换一把顺手的武器',copy:'走到地面武器上自动拾取；用数字键、滚轮或右侧武器栏切换。弹药用尽时寻找同种补给，按 R 装填。',keys:['走近武器 · 自动拾取','数字键 / 滚轮 · 换枪','R · 装填']},
-    {title:'用技能脱困，把属性点花出去',copy:'能量足够时按 Q 开护幕、E 修复。升级会获得 2 个属性点：点选右侧属性，再按 Space 确认。死亡保留当局成长，下一局从 1 级开始。',keys:['Q / E · 技能','点选属性 → Space','每局重练 · 战绩保留']},
+    {title:'Move, aim, and land the first shot',copy:'Move with WASD, aim with the mouse, and hold left click to fire. Right click dashes you out of trouble.',keys:['W A S D · Move','Left click · Fire','Right click · Dash']},
+    {title:'Grab supplies and a weapon that suits you',copy:'Walk over a weapon to pick it up, then switch with the number keys, the mouse wheel, or the loadout panel on the right. When ammo runs out, find matching pickups and press R to reload.',keys:['Walk over a weapon · Auto pickup','Number keys / wheel · Switch weapon','R · Reload']},
+    {title:'Break out with abilities and spend your points',copy:'With enough energy, press Q for Shield and E for Repair. Every level grants 2 stat points: pick a stat on the right, then press Space to confirm. Death keeps your match growth, and the next match starts everyone at level 1.',keys:['Q / E · Abilities','Pick a stat → Space','Level resets each match · Career stats persist']},
   ];
   function guideIsOpen(){return !ui.guide.classList.contains('hidden')}
   function renderGuide(){
@@ -253,8 +253,8 @@
     ui.guideStep.textContent='0'+(guideIndex+1)+' / 03';ui.guideKeys.replaceChildren();
     for(const label of step.keys){const key=document.createElement('kbd');key.textContent=label;ui.guideKeys.append(key)}
     ui.guideBack.disabled=guideIndex===0;
-    ui.guideNext.textContent=guideIndex===2?(guideThenJoin?'准备好了，进入战场':'完成'):'下一步';
-    ui.guideNote.textContent=started?'对局仍在继续，阅读时角色停止操作。':'阅读时尚未入场，可以放心了解操作。';
+    ui.guideNext.textContent=guideIndex===2?(guideThenJoin?'Ready — enter the arena':'Done'):'Next';
+    ui.guideNote.textContent=started?'The match is still running; your pilot holds still while you read.':'You have not entered yet, so read at your own pace.';
   }
   function openGuide(thenJoin=false){
     guideIndex=0;guideThenJoin=thenJoin;guideReturnFocus=document.activeElement;
@@ -285,13 +285,13 @@
       lastHitId=hit.id;clearTimeout(damageTimer);ui.damageDirection.classList.add('hidden');
       if(['left','right','top','bottom'].includes(hit.direction)&&hit.age<.6){
         ui.damageDirection.dataset.direction=hit.direction;
-        ui.damageDirection.textContent={left:'◀ 左侧受击',right:'右侧受击 ▶',top:'▲ 上方受击',bottom:'▼ 下方受击'}[hit.direction];
+        ui.damageDirection.textContent={left:'◀ Hit from the left',right:'Hit from the right ▶',top:'▲ Hit from above',bottom:'▼ Hit from below'}[hit.direction];
         ui.damageDirection.classList.remove('hidden');
         damageTimer=setTimeout(()=>ui.damageDirection.classList.add('hidden'),Math.max(0,(.6-hit.age)*1000));
       }
     }
     const death=player?.death_feedback;
-    ui.deathReceipt.textContent=!player?.dead?'':death?.cause==='river'?'落入河流':death?.cause==='self'?'被自己的 '+(weapons[death.weapon]?.name||death.weapon||'爆炸')+' 击倒':death?'被 '+(death.killer||'对手')+' 用 '+(weapons[death.weapon]?.name||death.weapon||'武器')+' 击倒':'等待战斗回执…';
+    ui.deathReceipt.textContent=!player?.dead?'':death?.cause==='river'?'Fell into the river':death?.cause==='self'?'Was taken out by their own '+(weapons[death.weapon]?.name||death.weapon||'a blast')+'':death?'Was taken out by '+(death.killer||'an opponent')+' with '+(weapons[death.weapon]?.name||death.weapon||'a weapon')+'':'Waiting for the combat report…';
   }
   function appendLobbyChat(message){
     const list=ui.lobbyChatList;if(!list)return;
@@ -537,16 +537,16 @@
     if(replayFrames.length>MAX_REPLAY_FRAMES)replayFrames.splice(0,replayFrames.length-MAX_REPLAY_FRAMES);
   }
   function downloadReplay(){
-    if(!replayFrames.length){toast('暂无可保存的战斗片段');return}
+    if(!replayFrames.length){toast('No combat footage to save yet');return}
     const payload={version:1,game:'Morrow Fields',room,map,mode,created_at:new Date().toISOString(),frames:replayFrames};
     const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
-    const link=document.createElement('a');link.href=url;link.download='morrow-fields-replay-'+(room||'match')+'.json';link.click();URL.revokeObjectURL(url);toast('短回放已保存');
+    const link=document.createElement('a');link.href=url;link.download='morrow-fields-replay-'+(room||'match')+'.json';link.click();URL.revokeObjectURL(url);toast('Replay saved');
   }
   function resetLobbyHud(){
     players=[];previousPlayers=new Map();projectiles=[];pickups=[];pickupSpawns=[];resources=[];resourceSpawns=[];flags={};teamScores={'0':0,'1':0};winner=null;spectatorId=null;spectatorTarget=null;spectatorMode=false;privatePlayer=null;privateVotedMap=null;lastStateMessage=null;
     particles=[];rings=[];muzzles=[];damageNumbers=[];projectileTrails.clear();previousProjectileIds.clear();weaponRecoil.clear();cameraShake=0;screenShake=0;explosionFlash=0;damageFlash=0;hitConfirm=0;cameraKickX=0;cameraKickY=0;cameraX=W/2;cameraY=H/2;rackSignature='';
     document.querySelector('#weapon-list')?.replaceChildren();
-    ui.health.style.width='100%';ui.healthNumber.textContent='100 / 100';if(ui.armor)ui.armor.style.width='0%';if(ui.energy)ui.energy.style.width='100%';ui.score.textContent='0000';ui.kills.textContent='0';ui.deaths.textContent='0';ui.timer.textContent='00:00';ui.dash.style.width='100%';ui.upgradePoints.textContent='属性点 0 · 每级 +2 点 · Space确认所选升级';ui.confirmUpgrade.disabled=true;ui.weapon.textContent='PULSE NEEDLE';ui.ammo.textContent='∞';ui.info.textContent='BOLT / 28 DMG';ui.reloadStatus?.classList.add('hidden');ui.reloadStatus?.classList.remove('empty');if(ui.reloadFill)ui.reloadFill.style.setProperty('--reload-progress','0%');if(ui.reloadLabel)ui.reloadLabel.textContent='0.0s';ui.pilotCount.textContent='1 / '+roomCapacity;ui.mapName.textContent=(maps[selectedMap]?.name||selectedMap||'MOSSWOOD').split(' ')[0].toUpperCase();ui.deathBanner.classList.add('hidden');ui.matchResult?.classList.add('hidden');ui.copyRoom.classList.add('hidden');if(ui.levelBadge)ui.levelBadge.textContent='LV 1';if(ui.xpFill)ui.xpFill.style.width='0%';if(ui.xpLabel)ui.xpLabel.textContent='0 / 60 XP';
+    ui.health.style.width='100%';ui.healthNumber.textContent='100 / 100';if(ui.armor)ui.armor.style.width='0%';if(ui.energy)ui.energy.style.width='100%';ui.score.textContent='0000';ui.kills.textContent='0';ui.deaths.textContent='0';ui.timer.textContent='00:00';ui.dash.style.width='100%';ui.upgradePoints.textContent='Stat points 0 · +2 per level · Space to confirm';ui.confirmUpgrade.disabled=true;ui.weapon.textContent='PULSE NEEDLE';ui.ammo.textContent='∞';ui.info.textContent='BOLT / 28 DMG';ui.reloadStatus?.classList.add('hidden');ui.reloadStatus?.classList.remove('empty');if(ui.reloadFill)ui.reloadFill.style.setProperty('--reload-progress','0%');if(ui.reloadLabel)ui.reloadLabel.textContent='0.0s';ui.pilotCount.textContent='1 / '+roomCapacity;ui.mapName.textContent=(maps[selectedMap]?.name||selectedMap||'MOSSWOOD').split(' ')[0].toUpperCase();ui.deathBanner.classList.add('hidden');ui.matchResult?.classList.add('hidden');ui.copyRoom.classList.add('hidden');if(ui.levelBadge)ui.levelBadge.textContent='LV 1';if(ui.xpFill)ui.xpFill.style.width='0%';if(ui.xpLabel)ui.xpLabel.textContent='0 / 60 XP';
   }
   function formatReplayTime(milliseconds){
     const total=Math.max(0,Math.floor(milliseconds/1000)),minutes=Math.floor(total/60),seconds=String(total%60).padStart(2,'0');
@@ -554,7 +554,7 @@
   }
   function syncReplayControls(){
     if(!ui.replayControls)return;
-    ui.replayControls.classList.toggle('hidden',!replayMode);if(ui.replayToggle)ui.replayToggle.textContent=replayPaused?'继续':'暂停';
+    ui.replayControls.classList.toggle('hidden',!replayMode);if(ui.replayToggle)ui.replayToggle.textContent=replayPaused?'Resume':'Pause';
     if(ui.replaySeek){ui.replaySeek.max=String(Math.max(1,Math.ceil(replayDuration)));ui.replaySeek.value=String(Math.max(0,Math.min(replayDuration,replayElapsed)))}
     if(ui.replayTime)ui.replayTime.textContent=formatReplayTime(replayElapsed)+' / '+formatReplayTime(replayDuration);
   }
@@ -567,10 +567,10 @@
   }
   function toggleReplayPause(){
     if(!replayMode)return;
-    replayPaused=!replayPaused;replayLastAt=performance.now();clearTimeout(replayStopTimer);replayStopTimer=null;syncReplayControls();toast(replayPaused?'回放已暂停':'回放继续播放');
+    replayPaused=!replayPaused;replayLastAt=performance.now();clearTimeout(replayStopTimer);replayStopTimer=null;syncReplayControls();toast(replayPaused?'Replay paused':'Replay resumed');
   }
   function stopReplay(){
-    clearTimeout(replayStopTimer);replayStopTimer=null;replayMode=false;replayData=null;replayElapsed=0;replayLastAt=0;replayFrameIndex=0;replayDuration=0;replayPaused=false;replayLoopActive=false;started=false;clearInterval(inputTimer);clearInterval(pingTimer);resetLobbyHud();map=selectedMap;mode=selectedMode;modeName='Normal Deathmatch';document.body.classList.remove('in-match','replay-mode');ui.replayControls?.classList.add('hidden');ui.start.classList.remove('hidden');ui.state.textContent='WAITING FOR PILOTS';ui.status.textContent='回放已结束';draw();
+    clearTimeout(replayStopTimer);replayStopTimer=null;replayMode=false;replayData=null;replayElapsed=0;replayLastAt=0;replayFrameIndex=0;replayDuration=0;replayPaused=false;replayLoopActive=false;started=false;clearInterval(inputTimer);clearInterval(pingTimer);resetLobbyHud();map=selectedMap;mode=selectedMode;modeName='Normal Deathmatch';document.body.classList.remove('in-match','replay-mode');ui.replayControls?.classList.add('hidden');ui.start.classList.remove('hidden');ui.state.textContent='WAITING FOR PILOTS';ui.status.textContent='Replay ended';draw();
   }
   function renderReplayFrame(frame){
     previousPlayers=new Map(players.map(player=>[player.id,player]));
@@ -585,19 +585,19 @@
     while(replayFrameIndex+1<frames.length&&frames[replayFrameIndex+1].at<=replayElapsed)replayFrameIndex+=1;
     renderReplayFrame(frames[replayFrameIndex]||frames[0]||{});updatePerf(now);syncHud();draw(Math.min(.04,1/60));
     syncReplayControls();
-    if(!replayPaused&&frames.length&&replayFrameIndex>=frames.length-1&&replayElapsed>=replayDuration){replayLoopActive=false;toast('回放播放完毕');clearTimeout(replayStopTimer);replayStopTimer=setTimeout(()=>{if(replayMode)stopReplay()},900);return}
+    if(!replayPaused&&frames.length&&replayFrameIndex>=frames.length-1&&replayElapsed>=replayDuration){replayLoopActive=false;toast('Replay finished');clearTimeout(replayStopTimer);replayStopTimer=setTimeout(()=>{if(replayMode)stopReplay()},900);return}
     requestAnimationFrame(replayLoop);
   }
   async function loadReplayFile(file){
     if(!file)return;
     try{
-      if(started&&!replayMode&&socket?.readyState===WebSocket.OPEN){toast('请先返回大厅，再加载本地回放');if(ui.replayFile)ui.replayFile.value='';return}
+      if(started&&!replayMode&&socket?.readyState===WebSocket.OPEN){toast('Return to the lobby before loading a local replay');if(ui.replayFile)ui.replayFile.value='';return}
       if(replayMode)stopReplay();
       const payload=JSON.parse(await file.text());
       if(!Array.isArray(payload.frames)||!payload.frames.length)throw Error('empty replay');
-      replayData=payload;replayFrameIndex=0;replayElapsed=0;replayDuration=Math.max(0,...payload.frames.map(frame=>Math.max(0,Number(frame.at)||0)));replayLastAt=performance.now();replayPaused=false;replayLoopActive=true;replayMode=true;started=true;id=payload.frames[0].players?.[0]?.id||null;map=payload.map||'tidal';mode=payload.mode||'normal';modeName='本地短回放';
-      ui.start.classList.add('hidden');document.body.classList.add('in-match','replay-mode');ui.state.textContent='LOCAL REPLAY';ui.status.textContent='正在播放本地回放';syncReplayControls();requestAnimationFrame(replayLoop);
-    }catch{toast('回放文件无效或格式不支持')}
+      replayData=payload;replayFrameIndex=0;replayElapsed=0;replayDuration=Math.max(0,...payload.frames.map(frame=>Math.max(0,Number(frame.at)||0)));replayLastAt=performance.now();replayPaused=false;replayLoopActive=true;replayMode=true;started=true;id=payload.frames[0].players?.[0]?.id||null;map=payload.map||'tidal';mode=payload.mode||'normal';modeName='Local replay';
+      ui.start.classList.add('hidden');document.body.classList.add('in-match','replay-mode');ui.state.textContent='LOCAL REPLAY';ui.status.textContent='Playing local replay';syncReplayControls();requestAnimationFrame(replayLoop);
+    }catch{toast('Invalid replay file or unsupported format')}
     if(ui.replayFile)ui.replayFile.value='';
   }
   function showFeed(message){const box=document.querySelector('#feed'),line=document.createElement('div');line.className='feed-item';line.textContent=message;box.prepend(line);setTimeout(()=>line.remove(),4400)}
@@ -726,14 +726,14 @@
     resultShown=true;
     const teamWinner=(mode==='team_dm'||mode==='ctf')&&(winnerId==='0'||winnerId==='1');
     const victor=players.find(p=>p.id===winnerId);
-    ui.matchResultTitle.textContent=winnerId==='draw'?'本局平局':teamWinner?(winnerId==='0'?'潮汐队获胜':'赤焰队获胜'):(victor?victor.name+' 获胜':'战斗结束');
-    ui.matchResultSubtitle.textContent=modeName+' · '+players.length+' 名玩家';
+    ui.matchResultTitle.textContent=winnerId==='draw'?'Draw':teamWinner?(winnerId==='0'?'Tide Squad wins':'Ember Squad wins'):(victor?victor.name+' wins':'Battle over');
+    ui.matchResultSubtitle.textContent=modeName+' · '+players.length+' pilots';
     ui.matchResultRows.replaceChildren();
     [...players].sort((a,b)=>b.score-a.score).slice(0,8).forEach((player,index)=>{
       const row=document.createElement('div');row.className='match-result-row'+(player.id===id?' me':'');
       const rank=document.createElement('b');rank.textContent=String(index+1).padStart(2,'0');
       const name=document.createElement('span');name.textContent=(player.is_bot?'✳ ':'')+player.name;
-      const stats=document.createElement('small');stats.textContent=player.score+' 分 · '+player.kills+' 击倒 · '+player.deaths+' 倒下';
+      const stats=document.createElement('small');stats.textContent=player.score+' pts · '+player.kills+' kills · '+player.deaths+' downs';
       row.append(rank,name,stats);ui.matchResultRows.append(row);
     });
     ui.matchResult.classList.remove('hidden');
@@ -745,12 +745,12 @@
     Object.entries(maps).forEach(([mapId,definition])=>{
       const button=document.createElement('button');button.type='button';button.className='map-vote-button'+(message.voted_map===mapId?' selected':'');
       button.textContent=(definition.name||mapId)+' · '+(votes[mapId]||0);
-      button.addEventListener('click',()=>{send({type:'vote_map',map:mapId});if(ui.mapVoteStatus)ui.mapVoteStatus.textContent='已投票：'+(definition.name||mapId)+'，等待其他玩家';});
+      button.addEventListener('click',()=>{send({type:'vote_map',map:mapId});if(ui.mapVoteStatus)ui.mapVoteStatus.textContent='Voted: '+(definition.name||mapId)+', waiting for other pilots';});
       ui.mapVote.append(button);
     });
     if(ui.mapVoteStatus){
-      const timer=Number.isFinite(message.map_vote_in)&&message.map_vote_in>0?' · '+message.map_vote_in.toFixed(1)+'s 后自动开始':'';
-      ui.mapVoteStatus.textContent=message.voted_map?'已投票：'+(maps[message.voted_map]?.name||message.voted_map)+timer:'选择下一局地图；所有玩家投票后开始'+timer;
+      const timer=Number.isFinite(message.map_vote_in)&&message.map_vote_in>0?' · '+message.map_vote_in.toFixed(1)+'s until auto-start':'';
+      ui.mapVoteStatus.textContent=message.voted_map?'Voted: '+(maps[message.voted_map]?.name||message.voted_map)+timer:'Pick the next map; the match starts once every pilot votes'+timer;
     }
     if(ui.mapVoteProgressFill){const remaining=Number(message.map_vote_in)||0;ui.mapVoteProgressFill.style.width=Math.max(0,Math.min(100,remaining/15*100))+'%'}
   }
@@ -826,7 +826,7 @@
         privatePlayer=null;privateVotedMap=null;latestFeedId=0;lastHitId=null;ownDeathAt=0;
         clearTimeout(damageTimer);ui.damageDirection.classList.add('hidden');
         projectileTrails.clear();previousProjectileIds.clear();particles=[];rings=[];damageNumbers=[];
-        ui.state.textContent=spectatorMode?'SPECTATING':'LIVE FRONTIER';toast('新一局开始 · 等级与加点已重置');
+        ui.state.textContent=spectatorMode?'SPECTATING':'LIVE FRONTIER';toast('New match · Levels and upgrades reset');
       }
       roundNumber=message.round_number;
     }
@@ -875,7 +875,7 @@
     }
     combatFeedback(me);
     if(me)for(const weapon of ownedWeapons(me))if(!previousOwned.has(weapon)&&weapon!=='pulse'){
-      toast('拾取了 '+(weapons[weapon]?.name||weapon));
+      toast('Picked up '+(weapons[weapon]?.name||weapon));
     }
     const nextIds=new Set(),oldBullets=new Map(projectiles.map(b=>[b.id,b])),oldSpawns=new Map(pickupSpawns.map(marker=>[marker.id,marker])),oldResourceSpawns=new Map(resourceSpawns.map(marker=>[marker.id,marker])),now=performance.now();
     for(const bullet of message.projectiles||[]){
@@ -921,7 +921,7 @@
       const color=weapons[marker.weapon]?.color||'#d5bd68';
       burst(marker.x,marker.y,color,displaySettings.lowEffects?3:9,marker.weapon);
       rings.push({x:marker.x,y:marker.y,life:420,max:420,color,r:22,kind:marker.weapon,blast:0,power:1,seed:marker.id});
-      const me=localPlayer();if(me&&Number.isFinite(me.x)&&Math.hypot(me.x-marker.x,me.y-marker.y)<150)toast((weapons[marker.weapon]?.name||marker.weapon)+' 已补给');
+      const me=localPlayer();if(me&&Number.isFinite(me.x)&&Math.hypot(me.x-marker.x,me.y-marker.y)<150)toast((weapons[marker.weapon]?.name||marker.weapon)+' restocked');
     }
     const nextResourceSpawns=message.resource_spawns||[];
     for(const marker of nextResourceSpawns){
@@ -930,7 +930,7 @@
       const color=marker.kind==='health'?'#ef7473':'#73c7e4';
       burst(marker.x,marker.y,color,displaySettings.lowEffects?4:12,marker.kind==='health'?'flare':'prism');
       rings.push({x:marker.x,y:marker.y,life:500,max:500,color,r:26,kind:marker.kind==='health'?'flare':'prism',blast:0,power:1,seed:marker.id});
-      const me=localPlayer();if(me&&Number.isFinite(me.x)&&Math.hypot(me.x-marker.x,me.y-marker.y)<150)toast(marker.kind==='health'?'血包已刷新':'护甲已刷新');
+      const me=localPlayer();if(me&&Number.isFinite(me.x)&&Math.hypot(me.x-marker.x,me.y-marker.y)<150)toast(marker.kind==='health'?'Health pack respawned':'Armor respawned');
     }
     if(rings.length>MAX_RINGS)rings.splice(0,rings.length-MAX_RINGS);
     if(muzzles.length>MAX_MUZZLES)muzzles.splice(0,muzzles.length-MAX_MUZZLES);
@@ -955,7 +955,7 @@
     combatFeedback(localPlayer());
   }
   let resumeToken=null;
-  function finishDisconnected(reason='连接已断开，请检查网络后重新接入房间。'){
+  function finishDisconnected(reason='Connection lost. Check your network and rejoin the room.'){
     started=false;cancelAnimationFrame(animationFrameId);animationFrameId=null;clearTimeout(reconnectTimer);reconnectTimer=null;clearInterval(inputTimer);clearInterval(pingTimer);resetLobbyHud();document.body.classList.remove('in-match','spectator-mode');ui.start.classList.remove('hidden');ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;ui.status.textContent=reason;ui.state.textContent='LINK LOST';ui.copyRoom.classList.add('hidden');reconnectAttempts=0;
     clearTimeout(damageTimer);ui.damageDirection.classList.add('hidden');connectLobbyChat();
   }
@@ -965,10 +965,10 @@
       window.__morrowTestReconnects=(window.__morrowTestReconnects||0)+1;
     }
     const attempt=reconnectAttempts++;
-    if(attempt>=6){finishDisconnected();ui.status.textContent='重连失败，请检查网络后重新进入房间。';return}
+    if(attempt>=6){finishDisconnected();ui.status.textContent='Reconnect failed. Check your network and enter the room again.';return}
     const delay=Math.min(5000,500*Math.pow(2,attempt));
     ui.state.textContent='RECONNECTING';
-    ui.status.textContent='连接中断，'+(delay/1000).toFixed(1)+' 秒后重连（'+(attempt+1)+'/6）…';
+    ui.status.textContent='Connection interrupted, reconnecting in '+(delay/1000).toFixed(1)+'s ('+(attempt+1)+'/6)…';
     clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>{reconnectTimer=null;if(started){ui.room.value=room;join(true)}},delay);
   }
   function join(reconnecting=false){
@@ -976,22 +976,22 @@
     joinError='';ui.createRoom.classList.add('hidden');
     if(!reconnecting){clearTimeout(reconnectTimer);reconnectTimer=null;reconnectAttempts=0;intentionalSocketClose=false;resumeToken=null}
     ensureAudio();
-    ui.startButton.disabled=true;if(ui.watchRoom)ui.watchRoom.disabled=true;ui.status.textContent=spectatorMode?'正在接入观战频道…':'正在接入中继网络…';
+    ui.startButton.disabled=true;if(ui.watchRoom)ui.watchRoom.disabled=true;ui.status.textContent=spectatorMode?'Joining spectator channel…':'Connecting to the relay network…';
     if(lobbySocket){const previous=lobbySocket;lobbySocket=null;previous.close()}
-    try{socket=new WebSocket(wsUrl())}catch{ui.status.textContent='无法创建连接。请检查网络地址。';ui.startButton.disabled=false;return}
+    try{socket=new WebSocket(wsUrl())}catch{ui.status.textContent='Could not open a connection. Check the network address.';ui.startButton.disabled=false;return}
     const currentSocket=socket;
     if(testReconnectMode){
       window.__morrowTestDisconnect=()=>{intentionalSocketClose=false;currentSocket.close()};
     }
     socket.onopen=()=>{intentionalSocketClose=false;send({type:'join',client_id:CLIENT_ID,resume_token:reconnecting?resumeToken:null,name:ui.name.value,room:ui.room.value,map:selectedMap,mode:selectedMode,skin:selectedSkin,spectator:spectatorMode})};
     socket.onmessage=e=>{let message;try{message=JSON.parse(e.data)}catch{return}handle(message)};
-    socket.onerror=()=>{if(socket===currentSocket)ui.status.textContent='中继网络暂时不可用。正在重试…'};
+    socket.onerror=()=>{if(socket===currentSocket)ui.status.textContent='Relay network unavailable. Retrying…'};
     socket.onclose=()=>{
       if(socket!==currentSocket)return;
       if(joinError){ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;connectLobbyChat();return}
       if(started&&!intentionalSocketClose){clearInterval(inputTimer);clearInterval(pingTimer);scheduleReconnect();return}
       if(started)finishDisconnected();
-      else {ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;joinError='无法连接游戏服务，请检查网络后重试。';ui.status.textContent=joinError;connectLobbyChat()}
+      else {ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;joinError='Could not reach the game service. Check your network and try again.';ui.status.textContent=joinError;connectLobbyChat()}
       intentionalSocketClose=false;
     };
   }
@@ -1000,12 +1000,12 @@
     const card=ui.toggleAdvanced.closest('.lobby-card');
     const compact=card.classList.toggle('compact');
     ui.toggleAdvanced.setAttribute('aria-expanded',String(!compact));
-    ui.toggleAdvanced.textContent=compact?'更多选项 ▾':'收起选项 ▴';
+    ui.toggleAdvanced.textContent=compact?'More options ▾':'Hide options ▴';
   });
   function renderProfileCard(profile){
     if(!ui.profileLine||!profile)return;
     const games=Number(profile.matches)||0;
-    ui.profileLine.textContent='累计 '+games+' 场 · 击杀 '+(Number(profile.kills)||0)+' · 历史最高单局等级 '+(Number(profile.level)||1);
+    ui.profileLine.textContent='Career: '+games+' matches · '+(Number(profile.kills)||0)+' kills · best match level '+(Number(profile.level)||1);
     ui.profileLine.classList.remove('hidden');
   }
   async function loadProfileCard(){
@@ -1028,14 +1028,14 @@
       started=true;document.body.classList.toggle('spectator-mode',spectatorMode);document.body.classList.add('in-match');startedAt=performance.now();last=startedAt;nextRenderAt=0;latestFeedId=0;applyState(message);
       ui.start.classList.add('hidden');ui.copyRoom.classList.toggle('hidden',spectatorMode);
       history.replaceState(null,'',location.pathname+'?room='+encodeURIComponent(room));
-      ui.state.textContent=spectatorMode?'SPECTATING':'LIVE FRONTIER';ui.status.textContent=spectatorMode?'正在观战 '+room:'已接入 '+room;
+      ui.state.textContent=spectatorMode?'SPECTATING':'LIVE FRONTIER';ui.status.textContent=spectatorMode?'Spectating '+room:'Joined '+room;
       ui.copyRoom.querySelector('b').textContent=room;clearInterval(roomTimer);
-      clearInterval(inputTimer);inputTimer=null;updateInputInterval();pingTimer=setInterval(sendPing,2000);syncHud();updateScoreboard();animationFrameId=requestAnimationFrame(loop);canvas.focus();toast(spectatorMode?'已进入观战频道 '+room:'已接入房间 '+room);
+      clearInterval(inputTimer);inputTimer=null;updateInputInterval();pingTimer=setInterval(sendPing,2000);syncHud();updateScoreboard();animationFrameId=requestAnimationFrame(loop);canvas.focus();toast(spectatorMode?'Entered spectator channel '+room:'Joined room '+room);
     }else if(message.type==='state')applyState(message);
     else if(message.type==='private')applyPrivateState(message);
     else if(message.type==='pong'&&Number.isFinite(message.sent))pingValue=Math.max(0,Math.round(performance.now()-message.sent));
     else if(message.type==='error'){
-      joinError={room_full:'房间已满，请稍后重试，或创建一个新房间。',room_missing:'这个房间已关闭，请向朋友获取新邀请，或创建新房间。',match_ended:'这局已经结束，请等待朋友开始下一局后重试。',room_required:'请输入朋友的房间码后再观战。',room_invalid:'房间码格式不正确，请重新复制朋友的邀请链接。'}[message.code]||message.message||'接入失败，请稍后重试。';
+      joinError={room_full:'Room is full. Try again later or create a new room.',room_missing:'This room has closed. Ask your friend for a new invite or create a new room.',match_ended:'This match has ended. Wait for your friend to start the next one and try again.',room_required:'Enter the room code from your friend before spectating.',room_invalid:'Invalid room code. Copy the invite link from your friend again.'}[message.code]||message.message||'Could not join. Try again in a moment.';
       if(started)finishDisconnected(joinError);else ui.status.textContent=joinError;
       ui.startButton.disabled=false;if(ui.watchRoom)ui.watchRoom.disabled=false;
       ui.createRoom.classList.toggle('hidden',!ui.room.value.trim());intentionalSocketClose=true;socket?.close();
@@ -1068,21 +1068,21 @@
     spectatorId=alive[(index+direction+alive.length)%alive.length].id;
   }
   function chooseWeapon(weapon){
-    if(!ownedWeapons().includes(weapon)){toast('先在地图上拾取这件武器');return}
+    if(!ownedWeapons().includes(weapon)){toast('Pick up this weapon on the map first');return}
     if(localPlayer()?.weapon===weapon)return;
     send({type:'weapon',weapon});document.querySelectorAll('.weapon-slot').forEach(b=>b.classList.toggle('active',b.dataset.weapon===weapon));
   }
   const UPGRADE_KEYS=['vitality','velocity','amplify','regeneration','tenacity','rapid','swift','penetration'];
   const MAX_UPGRADE_TIER=8;
   const UPGRADE_META={
-    vitality:{label:'加固外壳',hint:'最大生命 +20',key:'V'},
-    velocity:{label:'推进器',hint:'移动速度 +16',key:'X'},
-    amplify:{label:'弹药增幅',hint:'子弹伤害 +12%',key:'C'},
-    regeneration:{label:'再生舱',hint:'每秒回复 0.6',key:'B'},
-    tenacity:{label:'韧性装甲',hint:'受到伤害 -4%',key:'G'},
-    rapid:{label:'快速装填',hint:'射速 +6% / 装填 -8%',key:'T'},
-    swift:{label:'疾风冲刺',hint:'冲刺冷却 -0.18s',key:'F'},
-    penetration:{label:'穿透弹芯',hint:'子弹穿透 +1',key:'P'},
+    vitality:{label:'Reinforced Hull',hint:'Max health +20',key:'V'},
+    velocity:{label:'Thrusters',hint:'Move speed +16',key:'X'},
+    amplify:{label:'Ammo Amplifier',hint:'Bullet damage +12%',key:'C'},
+    regeneration:{label:'Regen Pod',hint:'Heal 0.6 per second',key:'B'},
+    tenacity:{label:'Tenacity Plating',hint:'Damage taken -4%',key:'G'},
+    rapid:{label:'Rapid Reload',hint:'Fire rate +6% / reload -8%',key:'T'},
+    swift:{label:'Swift Dash',hint:'Dash cooldown -0.18s',key:'F'},
+    penetration:{label:'Penetrator Core',hint:'Bullet pierce +1',key:'P'},
   };
   function selectUpgrade(upgrade){
     if(!UPGRADE_KEYS.includes(upgrade))return;
@@ -1095,18 +1095,18 @@
   function buyUpgrade(upgrade=selectedUpgrade){
     selectUpgrade(upgrade);
     if(!started)return;
-    if((localPlayer()?.stat_points??localPlayer()?.skill_points??0)<1){toast('没有可用属性点');return}
+    if((localPlayer()?.stat_points??localPlayer()?.skill_points??0)<1){toast('No stat points available');return}
     send({type:'upgrade',upgrade:selectedUpgrade});
   }
   function syncHud(){
-    const p=localPlayer();if(!p){if(spectatorMode){ui.deathBanner.classList.add('hidden');ui.pilotCount.textContent=players.filter(v=>!v.is_bot).length+' / '+roomCapacity;ui.mapName.textContent=(maps[map]?.name||map||'MOSSWOOD').split(' ')[0].toUpperCase();ui.weapon.textContent='观战模式';ui.ammo.textContent='—';ui.info.textContent=spectatorTarget?'目标：'+spectatorTarget.name+' · [ ] 切换':'选择观战目标';}return;}
+    const p=localPlayer();if(!p){if(spectatorMode){ui.deathBanner.classList.add('hidden');ui.pilotCount.textContent=players.filter(v=>!v.is_bot).length+' / '+roomCapacity;ui.mapName.textContent=(maps[map]?.name||map||'MOSSWOOD').split(' ')[0].toUpperCase();ui.weapon.textContent='Spectator mode';ui.ammo.textContent='—';ui.info.textContent=spectatorTarget?'Target: '+spectatorTarget.name+' · [ ] to switch':'Choose a spectator target';}return;}
     const maximum=Math.max(1,Number(p.max_hp)||(100+(p.upgrades?.vitality||0)*20));
     ui.health.style.width=Math.max(0,Math.min(100,p.hp/maximum*100))+'%';
     ui.healthNumber.textContent=Math.max(0,p.hp)+' / '+maximum;
     if(ui.armor)ui.armor.style.width=Math.max(0,Math.min(100,(p.armor||0)/(p.max_armor||100)*100))+'%';
     if(ui.energy)ui.energy.style.width=Math.max(0,Math.min(100,(p.energy??0)))+'%';
     ui.deathBanner.classList.toggle('hidden',!p.dead);
-    if(p.dead)ui.deathStatus.textContent='复活倒计时 '+Math.ceil(p.respawn_in||0)+' 秒'+(spectatorTarget?' · 观战 '+spectatorTarget.name+' · [ ] 切换':'');
+    if(p.dead)ui.deathStatus.textContent='Respawning in '+Math.ceil(p.respawn_in||0)+'s'+(spectatorTarget?' · spectating '+spectatorTarget.name+' · [ ] to switch':'');
     combatFeedback(p);
     ui.score.textContent=String(p.score||0).padStart(4,'0');ui.kills.textContent=p.kills||0;ui.deaths.textContent=p.deaths||0;
     // ---- progression HUD: level, XP bar and unspent stat points -----------
@@ -1121,7 +1121,7 @@
       ui.xpFill.style.width=(ratio*100)+'%';
       ui.xpLabel.textContent=Math.max(0,Math.round(xp-levelStart))+' / '+xpToNext+' XP';
     }
-    ui.upgradePoints.textContent='属性点 '+statPoints+' · 每级 +2 点 · Space确认所选升级';
+    ui.upgradePoints.textContent='Stat points '+statPoints+' · +2 per level · Space to confirm';
     ui.confirmUpgrade.disabled=statPoints<1;
     document.querySelectorAll('[data-upgrade]').forEach(button=>{
       const key=button.dataset.upgrade;
@@ -1130,7 +1130,7 @@
       if(badge)badge.textContent=tier+'/8';
       button.classList.toggle('maxed',tier>=8);
       const meta=UPGRADE_META[key];
-      if(meta)button.title=meta.label+' · '+meta.hint+'（每级 1 点，当前 '+tier+'/'+MAX_UPGRADE_TIER+'）';
+      if(meta)button.title=meta.label+' · '+meta.hint+' (1 point per level, currently '+tier+'/'+MAX_UPGRADE_TIER+')';
     });
     ui.pilotCount.textContent=players.filter(v=>!v.is_bot).length+' / '+roomCapacity;
     ui.mapName.textContent=(maps[map]?.name||map||'MOSSWOOD').split(' ')[0].toUpperCase();
@@ -1145,15 +1145,15 @@
       const reloading=reloadRemaining>.02;
       ui.reloadStatus.classList.toggle('hidden',!reloading&&!noReserve);ui.reloadStatus.classList.toggle('empty',!reloading&&noReserve);
       ui.reloadFill.style.setProperty('--reload-progress',(reloading?Math.max(0,Math.min(100,(1-reloadRemaining/reloadDuration)*100)):0)+'%');
-      ui.reloadLabel.textContent=reloading?'装填 '+reloadRemaining.toFixed(1)+'s':'无备弹';
+      ui.reloadLabel.textContent=reloading?'Reloading '+reloadRemaining.toFixed(1)+'s':'No reserve ammo';
     }
     const weaponInfo=w.kind==='heal_beam'?'HEAL BEAM / '+(w.damage||0)+' HP · SELF '+(w.self_heal||0):
       (w.kind||'pulse').toUpperCase()+' / '+(w.damage||0)+' DMG'+(w.alternate?(p.alternate_fire?' · ENERGY ORB':' · HOLD Y'):'');
-    ui.info.textContent=switchRemaining>.02?'切换中 '+switchRemaining.toFixed(1)+'s · '+weaponInfo:weaponInfo;
+    ui.info.textContent=switchRemaining>.02?'Switching '+switchRemaining.toFixed(1)+'s · '+weaponInfo:weaponInfo;
 
     const now=performance.now();ui.dash.style.width=Math.max(0,Math.min(100,100-(dashReadyAt-now)/18))+'%';
     const elapsed=replayMode?Math.floor(replayElapsed/1000):Math.max(0,Math.ceil(roundRemaining!==null?roundRemaining:roundElapsed));
-    ui.timer.title=roundRemaining!==null?'本局剩余时间':'本局已进行时间';
+    ui.timer.title=roundRemaining!==null?'Time left in this match':'Time elapsed in this match';
     ui.timer.textContent=String(Math.floor(elapsed/60)).padStart(2,'0')+':'+String(elapsed%60).padStart(2,'0');
   }
   // ===== Scene art system ==================================================
@@ -1955,7 +1955,7 @@
       ctx.fillText(weapons[marker.weapon]?.slot||'?',0,3);ctx.globalAlpha=1;
       if(me&&Number.isFinite(me.x)&&Math.hypot(me.x-marker.x,me.y-marker.y)<68){
         const slot=weapons[marker.weapon]?.slot||'?';
-        const status=marker.available?'补给点':`重生 ${Math.ceil(marker.respawn_in||0)}s`;
+        const status=marker.available?'Supply point':`Respawn ${Math.ceil(marker.respawn_in||0)}s`;
         const label=slot+' · '+status;ctx.font='8px "Courier New",monospace';
         const width=ctx.measureText(label).width+10;ctx.fillStyle='#192017e8';ctx.fillRect(-width/2,-29,width,12);
         ctx.strokeStyle=color;ctx.strokeRect(-width/2,-29,width,12);ctx.fillStyle='#f3eccd';ctx.fillText(label,0,-20);
@@ -1964,7 +1964,7 @@
     }
   }
   function resourceMeta(kind){
-    return kind==='health'?{label:'血包',color:'#ef7473',glyph:'+'}:{label:'护甲',color:'#73c7e4',glyph:'◇'};
+    return kind==='health'?{label:'Health pack',color:'#ef7473',glyph:'+'}:{label:'Armor',color:'#73c7e4',glyph:'◇'};
   }
   function drawResourceGlyph(kind){
     const meta=resourceMeta(kind);ctx.save();ctx.imageSmoothingEnabled=false;
@@ -2887,7 +2887,7 @@
     try{
       const response=await fetch('/api/arena/rooms',{cache:'no-store'});if(!response.ok)throw Error();
       const active=await response.json(),list=document.querySelector('#room-list');list.replaceChildren();
-      if(!active.length){const empty=document.createElement('span');empty.className='empty-rooms';empty.textContent='暂时没有开放房间';list.append(empty);if(!joinError&&!ui.startButton.disabled)ui.status.textContent='房间码留空即可创建新战场，或打开朋友的邀请链接。';return}
+      if(!active.length){const empty=document.createElement('span');empty.className='empty-rooms';empty.textContent='No open rooms right now';list.append(empty);if(!joinError&&!ui.startButton.disabled)ui.status.textContent='Leave the room code empty to create a new arena, or open an invite link from a friend.';return}
       for(const item of active){
         const button=document.createElement('button');button.type='button';button.className='room-card';
         const code=document.createElement('b');code.textContent=item.code;const name=document.createElement('small');name.textContent=item.map_name;
@@ -2895,10 +2895,10 @@
         button.append(code,name,count);button.onclick=()=>{
           ui.room.value=item.code;selectMode(item.mode);
           selectedMap=item.map;map=item.map;document.querySelectorAll('[data-map]').forEach(card=>card.classList.toggle('active',card.dataset.map===item.map));
-          ui.status.textContent='已选择 '+item.code;draw();
+          ui.status.textContent='Selected '+item.code;draw();
         };list.append(button);
-      }if(!joinError)ui.status.textContent='输入相同房间码，和朋友加入同一战区';
-    }catch{if(!joinError)ui.status.textContent='房间列表暂时不可用，可以使用朋友的邀请链接'}
+      }if(!joinError)ui.status.textContent='Enter the same room code to join your friend in the arena';
+    }catch{if(!joinError)ui.status.textContent='Room list is unavailable right now; use an invite link from a friend'}
   }
   async function loadMapPreviews(){
     try{
@@ -2917,9 +2917,9 @@
     const index=PILOT_SKINS.findIndex(skin=>skin.id===selectedSkin);
     const skin=PILOT_SKINS[(index+1)%PILOT_SKINS.length];
     selectedSkin=skin.id;ui.skinCycle.dataset.skin=skin.id;ui.skinName.textContent=skin.name;
-    ui.skinCycle.setAttribute('aria-label','切换角色外观，当前'+skin.name);
+    ui.skinCycle.setAttribute('aria-label','Switch pilot skin, current: '+skin.name);
   }
-  const params=new URLSearchParams(location.search);if(params.has('room')){ui.room.value=params.get('room').slice(0,8).toUpperCase();ui.inviteNote.textContent='将加入朋友的房间 '+ui.room.value;ui.inviteNote.classList.remove('hidden')}
+  const params=new URLSearchParams(location.search);if(params.has('room')){ui.room.value=params.get('room').slice(0,8).toUpperCase();ui.inviteNote.textContent='Joining friend room '+ui.room.value;ui.inviteNote.classList.remove('hidden')}
   document.querySelectorAll('[data-ability]').forEach(button=>button.addEventListener('click',()=>{
     const ability=button.dataset.ability;send({type:'ability',ability});
     if(ability==='dash')dashReadyAt=performance.now()+1800;
@@ -2933,18 +2933,18 @@
     if(content&&lobbySocket?.readyState===WebSocket.OPEN){
       lobbySocket.send(JSON.stringify({type:'chat',name:ui.name.value,content}));
       ui.lobbyChatInput.value='';ui.lobbyChatInput.focus();
-    }else if(content)toast('大厅频道暂时未连接');
+    }else if(content)toast('Lobby channel is not connected yet');
   });
   document.querySelectorAll('[data-upgrade]').forEach(button=>button.addEventListener('click',()=>{
     selectUpgrade(button.dataset.upgrade);
-    if(started&&(localPlayer()?.stat_points??localPlayer()?.skill_points??0)>0)toast('已选升级，按 Space 确认');
+    if(started&&(localPlayer()?.stat_points??localPlayer()?.skill_points??0)>0)toast('Upgrade selected, press Space to confirm');
   }));
   ui.confirmUpgrade.addEventListener('click',()=>buyUpgrade(selectedUpgrade));
   selectUpgrade(selectedUpgrade);
   document.querySelectorAll('[data-map]').forEach(button=>button.addEventListener('click',()=>{selectedMap=button.dataset.map;map=selectedMap;document.querySelectorAll('[data-map]').forEach(item=>item.classList.toggle('active',item===button));draw()}));
   const leaveRoom=()=>{intentionalSocketClose=true;clearTimeout(reconnectTimer);send({type:'leave'});socket?.close();location.href='/arena/'};
-  ui.startButton.addEventListener('click',()=>{spectatorMode=false;if(!guideSeen)openGuide(true);else join()});ui.watchRoom?.addEventListener('click',()=>{if(!ui.room.value.trim()){ui.status.textContent='请输入房间码后再观战';return}spectatorMode=true;join()});ui.restart.addEventListener('click',leaveRoom);
-  ui.createRoom.addEventListener('click',()=>{ui.room.value='';joinError='';ui.createRoom.classList.add('hidden');ui.inviteNote.classList.add('hidden');const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);ui.status.textContent='房间码留空，进入战场即可创建新房间。';ui.startButton.focus()});
+  ui.startButton.addEventListener('click',()=>{spectatorMode=false;if(!guideSeen)openGuide(true);else join()});ui.watchRoom?.addEventListener('click',()=>{if(!ui.room.value.trim()){ui.status.textContent='Enter a room code before spectating';return}spectatorMode=true;join()});ui.restart.addEventListener('click',leaveRoom);
+  ui.createRoom.addEventListener('click',()=>{ui.room.value='';joinError='';ui.createRoom.classList.add('hidden');ui.inviteNote.classList.add('hidden');const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);ui.status.textContent='Room code is empty — enter the arena to create a new room.';ui.startButton.focus()});
   ui.matchResultReplay?.addEventListener('click',downloadReplay);
   ui.matchResultAgain?.addEventListener('click',()=>{if(started&&winner)send({type:'vote_map',map:selectedMap});else{intentionalSocketClose=true;clearTimeout(reconnectTimer);socket?.close();location.href='/arena/'}});
   ui.matchResultLobby?.addEventListener('click',leaveRoom);
@@ -2957,7 +2957,7 @@
     document.querySelector('#option-'+key.replace(/[A-Z]/g,match=>'-'+match.toLowerCase()))?.addEventListener('change',event=>setDisplaySetting(key,event.target.type==='range'?event.target.value:event.target.checked));
   }
   document.querySelector('#refresh-rooms').addEventListener('click',refreshRooms);
-  ui.copyRoom.addEventListener('click',async()=>{const invite=new URL(location.href);invite.searchParams.set('room',room||'');try{await navigator.clipboard.writeText(invite.href);toast('房间邀请链接已复制')}catch{toast('房间码：'+room)}});
+  ui.copyRoom.addEventListener('click',async()=>{const invite=new URL(location.href);invite.searchParams.set('room',room||'');try{await navigator.clipboard.writeText(invite.href);toast('Room invite link copied')}catch{toast('Room code: '+room)}});
   document.querySelector('#chat').addEventListener('submit',event=>{event.preventDefault();const input=document.querySelector('#chat-input'),content=input.value.trim();if(content)send({type:'chat',content});input.value='';document.querySelector('#chat').classList.add('hidden');canvas.focus()});
   function pointerMove(event){
     const rect=canvas.getBoundingClientRect(),point={x:(event.clientX-rect.left)*W/rect.width,y:(event.clientY-rect.top)*H/rect.height};

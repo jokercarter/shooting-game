@@ -937,8 +937,8 @@ WEAPONS = {
             "reload": 65 / 20, "movement_modifier": .975},
 }
 RESOURCE_ITEMS = {
-    "health": {"name": "Field Medkit", "label": "血包", "amount": 35, "color": "#e66f70"},
-    "armor": {"name": "Bark Armor", "label": "护甲", "amount": 40, "color": "#73b9cf"},
+    "health": {"name": "Field Medkit", "label": "Health Pack", "amount": 35, "color": "#e66f70"},
+    "armor": {"name": "Bark Armor", "label": "Armor", "amount": 40, "color": "#73b9cf"},
 }
 MODES = {
     "normal": {"name": "Normal Deathmatch", "teams": False, "flags": False, "zombies": False},
@@ -1015,7 +1015,7 @@ def _grant_xp(room: "Room", player: "Player", amount, now: float):
         player.stat_points += gained * STAT_POINTS_PER_LEVEL
         player.hp = max_health(player)
         store.save_progress(player.profile_id, new_level, int(player.xp))
-        add_feed(room, f"{player.name} 升到 {new_level} 级")
+        add_feed(room, f"{player.name} reached level {new_level}")
 @dataclass
 class Player:
     id: str

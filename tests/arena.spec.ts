@@ -10,18 +10,18 @@ test('public arena controls, crowd-aware room state and mobile lobby',async({pag
  const pageErrors:string[]=[];
  page.on('pageerror',error=>pageErrors.push(error.message));
  await page.goto('/arena/');
- await expect(page.getByRole('heading',{name:/苔木边境/})).toBeVisible();
+ await expect(page.getByRole('heading',{name:/Mosswood Frontier/})).toBeVisible();
  const arenaScript=await page.locator('script[src*="/arena/game.js"]').getAttribute('src');
  expect(arenaScript).toMatch(/game\.js\?v=\d+$/);
  await expect(page.locator('.control-hint')).toContainText('H/J/L');
- await expect(page.locator('.control-hint')).toContainText('右键跳跃');
+ await expect(page.locator('.control-hint')).toContainText('Right click');
  await expect(page.locator('.control-hint')).toContainText('Space');
- await expect(page.locator('.control-hint')).toContainText('Y 副射击');
+ await expect(page.locator('.control-hint')).toContainText('Y alternate fire');
 
  await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
- await page.getByLabel('玩家名称').fill('ArenaSmoke');
- await page.getByRole('button',{name:'进入战场'}).click();
+ await page.getByLabel('Pilot name').fill('ArenaSmoke');
+ await page.getByRole('button',{name:'Enter the arena'}).click();
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
  await expect(page.locator('#pilot-count')).toHaveText('1 / 20');
  await expect.poll(async()=>Number(await page.locator('#energy-fill').evaluate(el=>parseFloat((el as HTMLElement).style.width)||0)),{timeout:2500}).toBeGreaterThan(0);
@@ -33,17 +33,17 @@ test('public arena controls, crowd-aware room state and mobile lobby',async({pag
  await expect(velocity).toHaveClass(/selected/);
  await expect(page.locator('#confirm-upgrade')).toBeDisabled();
  await page.keyboard.press('Space');
- await expect(page.locator('#toast')).toHaveText('没有可用属性点');
+ await expect(page.locator('#toast')).toHaveText('No stat points available');
  // The progression HUD shows the starting level and an empty XP bar.
  await expect(page.locator('#level-badge')).toHaveText('LV 1');
  await expect(page.locator('#xp-label')).toHaveText('0 / 60 XP');
- await expect(page.locator('#upgrade-points')).toContainText('属性点 0');
+ await expect(page.locator('#upgrade-points')).toContainText('Stat points 0');
  // All eight stats are offered in the upgrade panel.
  await expect(page.locator('[data-upgrade]')).toHaveCount(8);
  await expect(page.locator('#arena')).toBeVisible();
 
- await page.getByRole('button',{name:'返回大厅'}).click();
- await expect(page.getByLabel('玩家名称')).toBeVisible();
+ await page.getByRole('button',{name:'Back to Lobby'}).click();
+ await expect(page.getByLabel('Pilot name')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
  await page.screenshot({path:'output/playwright/morrow-fields-arena-smoke-mobile.png',fullPage:true});
  await expect.poll(async()=>(await (await request.get('/api/arena/rooms')).json()).length,{timeout:5000}).toBe(0);
@@ -57,16 +57,16 @@ test('two local browser windows share one arena room',async({browser,request})=>
  const second=await context.newPage();
  try{
   await first.goto('/arena/');
-  await first.getByLabel('玩家名称').fill('LocalPilotA');
-  await first.getByRole('button',{name:'进入战场'}).click();
+  await first.getByLabel('Pilot name').fill('LocalPilotA');
+  await first.getByRole('button',{name:'Enter the arena'}).click();
   await expect(first.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   const room=new URL(first.url()).searchParams.get('room');
   expect(room).toMatch(/^[A-Z0-9]{6}$/);
 
   await second.goto('/arena/');
-  await second.getByLabel('玩家名称').fill('LocalPilotB');
-  await second.getByLabel('房间码').fill(room!);
-  await second.getByRole('button',{name:'进入战场'}).click();
+  await second.getByLabel('Pilot name').fill('LocalPilotB');
+  await second.getByLabel('Room code').fill(room!);
+  await second.getByRole('button',{name:'Enter the arena'}).click();
   await expect(second.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   await expect.poll(async()=>second.locator('#pilot-count').textContent(),{timeout:5000}).toBe('2 / 20');
   await expect.poll(async()=>first.locator('#pilot-count').textContent(),{timeout:5000}).toBe('2 / 20');
@@ -82,8 +82,8 @@ test('two local browser windows share one arena room',async({browser,request})=>
 
 test('reconnects after a transient network drop',async({page,request})=>{
  await page.goto('/arena/?test-reconnect');
- await page.getByLabel('玩家名称').fill('ReconnectPilot');
- await page.getByRole('button',{name:'进入战场'}).click();
+ await page.getByLabel('Pilot name').fill('ReconnectPilot');
+ await page.getByRole('button',{name:'Enter the arena'}).click();
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
  const room=new URL(page.url()).searchParams.get('room');
  expect(room).toMatch(/^[A-Z0-9]{6}$/);
@@ -99,8 +99,8 @@ test('reconnects after a transient network drop',async({page,request})=>{
 
 test('missile explosion shake attenuates with distance',async({page})=>{
  await page.goto('/arena/?test-reconnect');
- await page.getByLabel('玩家名称').fill('ShakePilot');
- await page.getByRole('button',{name:'进入战场'}).click();
+ await page.getByLabel('Pilot name').fill('ShakePilot');
+ await page.getByRole('button',{name:'Enter the arena'}).click();
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
  // Let a couple of state frames land so the camera has settled on the pilot;
  // measuring during the spawn transition reads a stale camera position.
@@ -124,7 +124,7 @@ test('missile explosion shake attenuates with distance',async({page})=>{
  expect(measurements!.middle).toBeGreaterThan(measurements!.far);
  expect(measurements!.near).toBeGreaterThan(.9);
  expect(measurements!.far).toBe(0);
- await page.getByRole('button',{name:'返回大厅'}).click();
+ await page.getByRole('button',{name:'Back to Lobby'}).click();
 });
 
 test('ten-player crowd keeps the private HUD patch responsive @performance',async({page,request},testInfo)=>{
@@ -135,8 +135,8 @@ test('ten-player crowd keeps the private HUD patch responsive @performance',asyn
  const pageErrors:string[]=[];
  page.on('pageerror',error=>pageErrors.push(error.message));
  await page.goto('/arena/?test-reconnect');
- await page.getByLabel('玩家名称').fill('CrowdOwner');
- await page.getByRole('button',{name:'进入战场'}).click();
+ await page.getByLabel('Pilot name').fill('CrowdOwner');
+ await page.getByRole('button',{name:'Enter the arena'}).click();
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
  const room=new URL(page.url()).searchParams.get('room');
  expect(room).toMatch(/^[A-Z0-9]{6}$/);
@@ -240,27 +240,27 @@ test('ten-player crowd keeps the private HUD patch responsive @performance',asyn
 
 test('display settings persist and live performance status is visible',async({page})=>{
  await page.goto('/arena/');
- await page.getByRole('button',{name:'设置'}).click();
+ await page.getByRole('button',{name:'Settings'}).click();
  await page.locator('#option-low-effects').check();
  await page.locator('#option-minimap').uncheck();
  await page.locator('#option-minimap-scale').evaluate((element)=>{element.value='1.35';element.dispatchEvent(new Event('input',{bubbles:true}));element.dispatchEvent(new Event('change',{bubbles:true}))});
  await expect(page.locator('#option-minimap-scale-value')).toHaveText('135%');
- await page.getByLabel('玩家名称').fill('SettingsPilot');
- await page.getByRole('button',{name:'进入战场'}).click();
+ await page.getByLabel('Pilot name').fill('SettingsPilot');
+ await page.getByRole('button',{name:'Enter the arena'}).click();
  await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
  await expect.poll(async()=>page.locator('#perf-label').textContent(),{timeout:4000}).toMatch(/FPS .* RTT .* STATE/);
  const state=await page.evaluate(()=>({low:document.body.classList.contains('low-effects'),hiddenMap:document.body.classList.contains('hide-minimap'),scale:localStorage.getItem('morrow-fields-minimapScale')}));
  expect(state).toEqual({low:true,hiddenMap:true,scale:'1.35'});
  expect(await page.locator('#match-result').count()).toBe(1);
- await page.getByRole('button',{name:'返回大厅'}).click();
+ await page.getByRole('button',{name:'Back to Lobby'}).click();
 });
 
 test('minimap only plots pilots inside the camera view, and concealment hides them',async({page})=>{
   const pageErrors:string[]=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
   await page.goto('/arena/?test-reconnect');
-  await page.getByLabel('玩家名称').fill('MiniVerify');
-  await page.getByRole('button',{name:'进入战场'}).click();
+  await page.getByLabel('Pilot name').fill('MiniVerify');
+  await page.getByRole('button',{name:'Enter the arena'}).click();
   await expect(page.getByText('LIVE FRONTIER',{exact:true})).toBeVisible();
   await page.waitForTimeout(1400);
 

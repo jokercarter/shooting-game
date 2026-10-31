@@ -42,7 +42,7 @@ kbd,.key{border:1px solid #9ba17d;border-bottom-width:2px;border-radius:2px;padd
 .in-match .loadout-panel{display:block}
 .weapon-list{display:grid;gap:3px}
 .weapon-slot{width:100%;min-height:31px;display:grid;grid-template-columns:15px 30px minmax(0,1fr);align-items:center;gap:4px;padding:2px 4px;text-align:left;cursor:pointer;background:#1a2319e8;border:1px solid #768158;color:#f2edd8;box-shadow:0 2px 4px #1117}
-.weapon-slot:hover,.weapon-slot.active{background:#39432a;border-color:#d1d77b;transform:translateX(-2px)}.weapon-slot.switching{border-color:#e9a260;opacity:.68;filter:saturate(.7)}.weapon-slot.switching .weapon-copy:after{content:"切换中";display:block;color:#ffca78;font-size:7px;letter-spacing:.4px}.weapon-slot.reloading{border-color:#e1c667;background:#413d27}.weapon-slot.reloading .weapon-glyph{animation:weapon-reload-pulse .36s steps(2,end) infinite;filter:brightness(1.35)}.weapon-slot.reloading .weapon-ammo{color:#f2d56d}@keyframes weapon-reload-pulse{50%{opacity:.5;transform:translateX(2px)}}@keyframes weapon-switch-pulse{50%{opacity:.55}}
+.weapon-slot:hover,.weapon-slot.active{background:#39432a;border-color:#d1d77b;transform:translateX(-2px)}.weapon-slot.switching{border-color:#e9a260;opacity:.68;filter:saturate(.7)}.weapon-slot.switching .weapon-copy:after{content:"SWITCHING";display:block;color:#ffca78;font-size:7px;letter-spacing:.4px}.weapon-slot.reloading{border-color:#e1c667;background:#413d27}.weapon-slot.reloading .weapon-glyph{animation:weapon-reload-pulse .36s steps(2,end) infinite;filter:brightness(1.35)}.weapon-slot.reloading .weapon-ammo{color:#f2d56d}@keyframes weapon-reload-pulse{50%{opacity:.5;transform:translateX(2px)}}@keyframes weapon-switch-pulse{50%{opacity:.55}}
 .weapon-slot .slot-key{justify-self:start;padding:1px 3px;font-size:8px;color:#f3df8b}
 .weapon-glyph{display:block;width:30px;height:22px;background:transparent;border:0;image-rendering:pixelated}
 .weapon-copy{display:block;min-width:0}.weapon-copy b{display:none}.weapon-copy small{display:block;color:#e1dc9c;font:8px/1.2 "Courier New",monospace;white-space:nowrap}
@@ -508,3 +508,23 @@ body:not(.in-match) #restart{display:none}
 .lobby-chat-form button{flex:0 0 auto}
 /* "Back to lobby" only makes sense once you have left it. */
 body:not(.in-match) #restart{display:none}
+/* English UI: keep narrow HUD panels from spilling off-screen */
+.upgrade-box button{overflow:hidden}
+.upgrade-grid button{min-width:0}
+.upgrade-tier{margin-left:auto;flex:0 0 auto}
+.ability small,.weapon-slot .weapon-copy{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.loadout-panel{max-width:44vw}
+.upgrade-grid button{padding:4px 4px;gap:4px}
+.upgrade-tier{font-size:7px}
+.upgrade-grid button{padding:4px 4px;gap:4px}
+.upgrade-tier{font-size:7px}
+@media (min-width:760px){
+  .weapon-readout{bottom:30px}
+  .bottom-left{bottom:30px}
+  .loadout-panel{bottom:32px;max-height:calc(100% - 252px)}
+}
+@media (min-width:760px){
+  .weapon-readout{bottom:30px}
+  .bottom-left{bottom:30px}
+  .loadout-panel{bottom:32px;max-height:calc(100% - 252px)}
+}
