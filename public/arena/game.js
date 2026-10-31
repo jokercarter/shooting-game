@@ -226,8 +226,9 @@
   const displaySettings={lowEffects:false,minimap:true,weapons:true,chat:true,perf:true,minimapScale:1,volume:.35};
   let audioContext=null,audioLastShotAt=0,replayMode=false,replayData=null,replayElapsed=0,replayLastAt=0,replayFrameIndex=0,replayDuration=0,replayPaused=false,replayLoopActive=false,replayStopTimer=null;
 
-  const wsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena';
-  const lobbyWsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena/lobby';
+  const wsQuery=()=>location.search||'';
+  const wsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena'+wsQuery();
+  const lobbyWsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena/lobby'+wsQuery();
   const testReconnectMode=new URLSearchParams(location.search).has('test-reconnect');
   const PRIVATE_PLAYER_FIELDS=['id','energy','owned_weapons','upgrades','ammo','level','xp','xp_to_next','xp_start','stat_points','hit_feedback','death_feedback'];
   function privatePlayerFields(player){

@@ -13,3 +13,6 @@ tmp/
 *.sqlite
 data/
 *.db
+
+# WorkBuddy publish marker
+.wbapp_*.genie
