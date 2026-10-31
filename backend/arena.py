@@ -2787,7 +2787,125 @@ def arena_leaderboard(limit: int = 10, hours: float = 24):
     return store.leaderboard(limit=limit, since_hours=max(1.0, min(720.0, hours)))
 
 
+# --- HTTP transport fallback -------------------------------------------------
+# Some hosting proxies refuse WebSocket upgrades that carry an Origin header,
+# and a browser always sends one. The same room handlers therefore also run
+# over HTTP long polling: POST to send, GET to receive.
+
+
+class _HttpSession:
+    def __init__(self, sid: str):
+        self.id = sid
+        self.outbox: list[str] = []
+        self.base = 0
+        self.inbox: asyncio.Queue = asyncio.Queue()
+        self.closed = False
+        self.wake = asyncio.Event()
+        self.task: asyncio.Task | None = None
+
+    @property
+    def head(self) -> int:
+        return self.base + len(self.outbox)
+
+    def push(self, text: str) -> None:
+        self.outbox.append(text)
+        if len(self.outbox) > 2000:
+            drop = len(self.outbox) - 2000
+            del self.outbox[:drop]
+            self.base += drop
+        self.wake.set()
+
+    def shutdown(self) -> None:
+        self.closed = True
+        self.wake.set()
+
+
+class _HttpSocket:
+    """The slice of the WebSocket API the room handlers actually use."""
+
+    def __init__(self, session: _HttpSession):
+        self.session = session
+        self.headers: dict[str, str] = {}
+
+    async def accept(self) -> None:
+        return None
+
+    async def send_json(self, payload) -> None:
+        self.session.push(json.dumps(payload, separators=(",", ":")))
+
+    async def send_text(self, text: str) -> None:
+        self.session.push(text)
+
+    async def receive_json(self):
+        try:
+            message = await asyncio.wait_for(self.session.inbox.get(), timeout=120)
+        except asyncio.TimeoutError as exc:
+            raise WebSocketDisconnect(code=1000) from exc
+        if message is None:
+            raise WebSocketDisconnect(code=1000)
+        return message
+
+    async def close(self, code: int = 1000) -> None:
+        self.session.shutdown()
+
+
+TRANSPORT_SESSIONS: dict[str, _HttpSession] = {}
+
+
+@router.post("/api/arena/transport/connect")
+async def transport_connect(payload: dict):
+    kind = str(payload.get("kind") or "arena")
+    session = _HttpSession(secrets.token_hex(16))
+    TRANSPORT_SESSIONS[session.id] = session
+    shim = _HttpSocket(session)
+    handler = arena_lobby_socket if kind == "lobby" else arena_socket
+
+    async def run() -> None:
+        try:
+            await handler(shim)
+        finally:
+            TRANSPORT_SESSIONS.pop(session.id, None)
+
+    session.task = asyncio.create_task(run())
+    return {"sid": session.id}
+
+
+@router.post("/api/arena/transport/send")
+async def transport_send(payload: dict):
+    session = TRANSPORT_SESSIONS.get(str(payload.get("sid") or ""))
+    if session is None or session.closed:
+        return {"ok": False, "closed": True}
+    message = payload.get("message")
+    if isinstance(message, dict):
+        await session.inbox.put(message)
+    return {"ok": True}
+
+
+@router.get("/api/arena/transport/poll")
+async def transport_poll(sid: str, cursor: int = 0, timeout: float = 15.0):
+    session = TRANSPORT_SESSIONS.get(sid)
+    if session is None:
+        return {"cursor": cursor, "messages": [], "closed": True}
+    deadline = time.monotonic() + max(0.0, min(timeout, 20.0))
+    while not session.closed and session.head <= cursor and time.monotonic() < deadline:
+        session.wake.clear()
+        remaining = deadline - time.monotonic()
+        try:
+            await asyncio.wait_for(session.wake.wait(), timeout=min(max(remaining, 0.01), 1.0))
+        except asyncio.TimeoutError:
+            pass
+    start = max(cursor, session.base)
+    return {
+        "cursor": session.head,
+        "messages": session.outbox[start - session.base:],
+        "closed": session.closed,
+    }
+
+
 @router.websocket("/ws/arena/lobby")
+# Some hosts only proxy WebSocket upgrades under the static app prefix,
+# so the same handler answers on both paths.
+@router.websocket("/arena/ws/lobby")
 async def arena_lobby_socket(socket: WebSocket):
     origin = socket.headers.get("origin")
     host = socket.headers.get("host")
@@ -2835,6 +2953,7 @@ async def arena_lobby_socket(socket: WebSocket):
 
 
 @router.websocket("/ws/arena")
+@router.websocket("/arena/ws")
 async def arena_socket(socket: WebSocket):
     origin = socket.headers.get("origin")
     host = socket.headers.get("host")

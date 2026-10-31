@@ -97,7 +97,7 @@ test('private combat receipts expire and next round replaces the cached build',a
   let server:any;
   let player:any={id:'local',name:'Pilot',x:750,y:750,hue:'#55caff',skin:'wayfinder',hp:140,max_hp:140,armor:0,max_armor:100,energy:100,weapon:'pulse',owned_weapons:['pulse'],ammo:{pulse:{mag:-1,reserve:-1,reload_remaining:0}},upgrades:{vitality:2,rapid:1},stat_points:3,level:5,xp:500,xp_start:480,xp_to_next:220,score:100,kills:1,deaths:0,angle:0,dead:false,is_bot:false};
   const state=(extra:any={})=>({type:'state',room:'FRIEND',mode:'normal',mode_name:'Free-for-All',map:'tidal',round_number:1,round_elapsed:10,round_remaining:470,capacity:20,state_interval_ms:50,players:[player],projectiles:[],feed:[],winner:null,...extra});
-  await page.routeWebSocket('**/ws/arena',socket=>{
+  await page.routeWebSocket('**/arena/ws',socket=>{
     server=socket;
     socket.onMessage(raw=>{
       const message=JSON.parse(String(raw));

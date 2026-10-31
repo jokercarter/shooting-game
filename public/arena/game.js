@@ -227,8 +227,63 @@
   let audioContext=null,audioLastShotAt=0,replayMode=false,replayData=null,replayElapsed=0,replayLastAt=0,replayFrameIndex=0,replayDuration=0,replayPaused=false,replayLoopActive=false,replayStopTimer=null;
 
   const wsQuery=()=>location.search||'';
-  const wsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena'+wsQuery();
-  const lobbyWsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/arena/lobby'+wsQuery();
+  const wsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/arena/ws'+wsQuery();
+  const lobbyWsUrl=()=>(location.protocol==='https:'?'wss://':'ws://')+location.host+'/arena/ws/lobby'+wsQuery();
+  // Hosting proxies can reject WebSocket upgrades that carry an Origin header,
+  // which a browser always sends. Every connection therefore falls back to an
+  // HTTP long-poll transport served by the same room handlers.
+  const FORCE_HTTP=/\btransport=http\b/.test(location.search);
+  function openTransport(kind,url){
+    const socketLike={readyState:0,onopen:null,onmessage:null,onerror:null,onclose:null,http:false};
+    let ws=null,sid=null,cursor=0,stopped=false,retryTimer=null,guardTimer=null;
+    const fire=(handler,arg)=>{if(typeof handler==='function'){try{handler(arg)}catch(error){console.error(error)}}};
+    const halt=()=>{stopped=true;socketLike.readyState=3;clearTimeout(retryTimer);retryTimer=null;clearTimeout(guardTimer);guardTimer=null};
+    const pump=()=>{
+      if(stopped||!sid)return;
+      fetch('/api/arena/transport/poll?sid='+encodeURIComponent(sid)+'&cursor='+cursor+'&timeout=15',{cache:'no-store'})
+        .then(response=>response.json())
+        .then(data=>{
+          if(stopped)return;
+          if(Number.isFinite(data.cursor))cursor=data.cursor;
+          (data.messages||[]).forEach(text=>fire(socketLike.onmessage,{data:text}));
+          if(data.closed){halt();fire(socketLike.onclose);return}
+          pump();
+        })
+        .catch(()=>{if(!stopped){retryTimer=setTimeout(pump,700)}});
+    };
+    const startHttp=()=>{
+      if(socketLike.http||stopped)return;
+      socketLike.http=true;
+      if(ws){try{ws.close()}catch(error){}}
+      fetch('/api/arena/transport/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind})})
+        .then(response=>response.json())
+        .then(data=>{
+          if(stopped||!data.sid)throw new Error('no transport session');
+          sid=data.sid;cursor=0;socketLike.readyState=1;fire(socketLike.onopen);pump();
+        })
+        .catch(()=>{halt();fire(socketLike.onerror);fire(socketLike.onclose)});
+    };
+    if(FORCE_HTTP){startHttp()}
+    else{
+      try{ws=new WebSocket(url)}catch(error){ws=null;startHttp()}
+      if(ws){
+        guardTimer=setTimeout(()=>{if(socketLike.readyState!==1)startHttp()},2500);
+        ws.onopen=()=>{clearTimeout(guardTimer);guardTimer=null;if(socketLike.http)return;socketLike.readyState=1;fire(socketLike.onopen)};
+        ws.onmessage=event=>{if(!socketLike.http)fire(socketLike.onmessage,event)};
+        ws.onerror=()=>{if(socketLike.readyState!==1)startHttp()};
+        ws.onclose=()=>{if(socketLike.http)return;if(socketLike.readyState===1){halt();fire(socketLike.onclose)}};
+      }
+    }
+    socketLike.send=text=>{
+      if(socketLike.readyState!==1)return;
+      if(!socketLike.http){if(ws)ws.send(text);return}
+      let message;try{message=JSON.parse(text)}catch(error){return}
+      fetch('/api/arena/transport/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid,message})}).catch(()=>{});
+    };
+    socketLike.close=()=>{const wasOpen=socketLike.readyState===1;halt();if(ws){try{ws.close()}catch(error){}}if(wasOpen)fire(socketLike.onclose)};
+    return socketLike;
+  }
+
   const testReconnectMode=new URLSearchParams(location.search).has('test-reconnect');
   const PRIVATE_PLAYER_FIELDS=['id','energy','owned_weapons','upgrades','ammo','level','xp','xp_to_next','xp_start','stat_points','hit_feedback','death_feedback'];
   function privatePlayerFields(player){
@@ -308,7 +363,7 @@
   }
   function connectLobbyChat(){
     if(started||!ui.lobbyChatList||[WebSocket.CONNECTING,WebSocket.OPEN].includes(lobbySocket?.readyState))return;
-    try{lobbySocket=new WebSocket(lobbyWsUrl())}catch{return}
+    lobbySocket=openTransport('lobby',lobbyWsUrl());
     const current=lobbySocket;
     current.onmessage=event=>{
       let message;try{message=JSON.parse(event.data)}catch{return}
@@ -979,7 +1034,7 @@
     ensureAudio();
     ui.startButton.disabled=true;if(ui.watchRoom)ui.watchRoom.disabled=true;ui.status.textContent=spectatorMode?'Joining spectator channel…':'Connecting to the relay network…';
     if(lobbySocket){const previous=lobbySocket;lobbySocket=null;previous.close()}
-    try{socket=new WebSocket(wsUrl())}catch{ui.status.textContent='Could not open a connection. Check the network address.';ui.startButton.disabled=false;return}
+    socket=openTransport('arena',wsUrl());
     const currentSocket=socket;
     if(testReconnectMode){
       window.__morrowTestDisconnect=()=>{intentionalSocketClose=false;currentSocket.close()};
