@@ -2802,17 +2802,25 @@ class _HttpSession:
         self.closed = False
         self.wake = asyncio.Event()
         self.task: asyncio.Task | None = None
+        self.tail_state = False
 
     @property
     def head(self) -> int:
         return self.base + len(self.outbox)
 
     def push(self, text: str) -> None:
-        self.outbox.append(text)
-        if len(self.outbox) > 2000:
-            drop = len(self.outbox) - 2000
-            del self.outbox[:drop]
-            self.base += drop
+        # A poll that arrives late only needs the newest snapshot, so a queued
+        # state is replaced instead of piling up behind newer ones.
+        is_state = text.startswith('{"type":"state"') or text.startswith('{"type": "state"')
+        if is_state and self.outbox and self.tail_state:
+            self.outbox[-1] = text
+        else:
+            self.outbox.append(text)
+            if len(self.outbox) > 2000:
+                drop = len(self.outbox) - 2000
+                del self.outbox[:drop]
+                self.base += drop
+            self.tail_state = is_state
         self.wake.set()
 
     def shutdown(self) -> None:
@@ -2875,10 +2883,81 @@ async def transport_send(payload: dict):
     session = TRANSPORT_SESSIONS.get(str(payload.get("sid") or ""))
     if session is None or session.closed:
         return {"ok": False, "closed": True}
-    message = payload.get("message")
-    if isinstance(message, dict):
-        await session.inbox.put(message)
+    batch = payload.get("messages")
+    if isinstance(batch, list):
+        for message in batch:
+            if isinstance(message, dict):
+                await session.inbox.put(message)
+    else:
+        message = payload.get("message")
+        if isinstance(message, dict):
+            await session.inbox.put(message)
     return {"ok": True}
+
+
+@router.get("/api/arena/transport/stream")
+async def transport_stream(sid: str, cursor: int = 0):
+    """Server push for HTTP clients: one long response, messages as they happen."""
+    from fastapi.responses import Response, StreamingResponse
+
+    session = TRANSPORT_SESSIONS.get(sid)
+    if session is None:
+        return Response(status_code=404)
+
+    def generator():
+        async def gen():
+            position = cursor
+            last_beat = time.monotonic()
+            yield ": ok\n\n"
+            while not session.closed:
+                start = max(position, session.base)
+                pending = session.outbox[start - session.base:]
+                if pending:
+                    for text in pending:
+                        yield f"data: {text}\n\n"
+                    position = session.head
+                    yield f": cursor {position}\n\n"
+                    last_beat = time.monotonic()
+                    continue
+                session.wake.clear()
+                try:
+                    await asyncio.wait_for(session.wake.wait(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    pass
+                if time.monotonic() - last_beat > 10:
+                    yield ": ping\n\n"
+                    last_beat = time.monotonic()
+        return gen()
+
+    return StreamingResponse(generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@router.post("/api/arena/transport/tick")
+async def transport_tick(payload: dict):
+    """One round trip per frame: deliver queued inputs and collect new output."""
+    session = TRANSPORT_SESSIONS.get(str(payload.get("sid") or ""))
+    if session is None:
+        return {"cursor": 0, "messages": [], "closed": True}
+    for message in payload.get("messages") or []:
+        if isinstance(message, dict):
+            await session.inbox.put(message)
+    cursor = int(payload.get("cursor") or 0)
+    wait = max(0.0, min(float(payload.get("wait") or 0.0), 1.0))
+    deadline = time.monotonic() + wait
+    while not session.closed and session.head <= cursor and time.monotonic() < deadline:
+        session.wake.clear()
+        remaining = deadline - time.monotonic()
+        try:
+            await asyncio.wait_for(session.wake.wait(), timeout=min(max(remaining, 0.01), 0.25))
+        except asyncio.TimeoutError:
+            pass
+    start = max(cursor, session.base)
+    return {
+        "cursor": session.head,
+        "messages": session.outbox[start - session.base:],
+        "closed": session.closed,
+    }
 
 
 @router.get("/api/arena/transport/poll")

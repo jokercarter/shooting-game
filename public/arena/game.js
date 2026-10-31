@@ -238,18 +238,76 @@
     let ws=null,sid=null,cursor=0,stopped=false,retryTimer=null,guardTimer=null;
     const fire=(handler,arg)=>{if(typeof handler==='function'){try{handler(arg)}catch(error){console.error(error)}}};
     const halt=()=>{stopped=true;socketLike.readyState=3;clearTimeout(retryTimer);retryTimer=null;clearTimeout(guardTimer);guardTimer=null};
-    const pump=()=>{
+    let outbox=[],flushing=false,sawData=false,streamRetry=0,tickMode=false,uploadTimer=null;
+    const deliver=data=>{
+      if(stopped)return true;
+      if(Number.isFinite(data.cursor))cursor=data.cursor;
+      const list=data.messages||[];
+      if(list.length)sawData=true;
+      for(const text of list)fire(socketLike.onmessage,{data:text});
+      if(data.closed){halt();fire(socketLike.onclose);return true}
+      return false;
+    };
+    // The upload channel runs several requests in parallel: on a long round trip
+    // a single in-flight POST would throttle input to one update per second.
+    let inflight=0;
+    const MAX_UPLOADS=6;
+    const flush=()=>{
+      if(stopped||!sid||!outbox.length||inflight>=MAX_UPLOADS)return;
+      const batch=outbox;outbox=[];inflight+=1;
+      fetch('/api/arena/transport/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid,messages:batch})})
+        .catch(()=>{outbox=batch.concat(outbox)})
+        .finally(()=>{inflight-=1});
+    };
+    // Fallback used only when the push channel cannot stream: one round trip
+    // carries the queued inputs up and the newest state down.
+    const startTick=()=>{
+      if(tickMode||stopped)return;
+      tickMode=true;
+      const loop=()=>{
+        if(stopped||!sid)return;
+        const batch=outbox;outbox=[];flushing=true;
+        fetch('/api/arena/transport/tick',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid,cursor,messages:batch,wait:0.05})})
+          .then(response=>response.json())
+          .then(data=>{
+            flushing=false;
+            if(deliver(data))return;
+            loop();
+          })
+          .catch(()=>{flushing=false;outbox=batch.concat(outbox);if(!stopped)retryTimer=setTimeout(loop,400)});
+      };
+      loop();
+    };
+    // Primary channel: one long-lived response, so a frame costs no round trip.
+    const startStream=async()=>{
       if(stopped||!sid)return;
-      fetch('/api/arena/transport/poll?sid='+encodeURIComponent(sid)+'&cursor='+cursor+'&timeout=15',{cache:'no-store'})
-        .then(response=>response.json())
-        .then(data=>{
-          if(stopped)return;
-          if(Number.isFinite(data.cursor))cursor=data.cursor;
-          (data.messages||[]).forEach(text=>fire(socketLike.onmessage,{data:text}));
-          if(data.closed){halt();fire(socketLike.onclose);return}
-          pump();
-        })
-        .catch(()=>{if(!stopped){retryTimer=setTimeout(pump,700)}});
+      try{
+        const response=await fetch('/api/arena/transport/stream?sid='+encodeURIComponent(sid)+'&cursor='+cursor,{cache:'no-store'});
+        if(!response.ok||!response.body)throw new Error('stream unavailable');
+        const reader=response.body.getReader();
+        const decoder=new TextDecoder();
+        let buffer='';
+        streamRetry=0;
+        while(!stopped){
+          const read=await reader.read();
+          if(read.done)break;
+          buffer+=decoder.decode(read.value,{stream:true});
+          let cut;
+          while((cut=buffer.indexOf('\n\n'))>=0){
+            const block=buffer.slice(0,cut);buffer=buffer.slice(cut+2);
+            block.split('\n').forEach(line=>{
+              if(line.startsWith('data: ')){
+                sawData=true;fire(socketLike.onmessage,{data:line.slice(6)});
+              }else if(line.startsWith(': cursor ')){
+                const value=Number(line.slice(9));if(Number.isFinite(value))cursor=value;
+              }
+            });
+          }
+        }
+      }catch(error){streamRetry+=1}
+      if(stopped)return;
+      if(!sawData){startTick();return}
+      retryTimer=setTimeout(startStream,Math.min(3000,400*streamRetry+300));
     };
     const startHttp=()=>{
       if(socketLike.http||stopped)return;
@@ -259,7 +317,9 @@
         .then(response=>response.json())
         .then(data=>{
           if(stopped||!data.sid)throw new Error('no transport session');
-          sid=data.sid;cursor=0;socketLike.readyState=1;fire(socketLike.onopen);pump();
+          sid=data.sid;cursor=0;socketLike.readyState=1;fire(socketLike.onopen);
+          startStream();uploadTimer=setInterval(flush,60);
+          setTimeout(()=>{if(!sawData&&!stopped)startTick()},3500);
         })
         .catch(()=>{halt();fire(socketLike.onerror);fire(socketLike.onclose)});
     };
@@ -278,7 +338,12 @@
       if(socketLike.readyState!==1)return;
       if(!socketLike.http){if(ws)ws.send(text);return}
       let message;try{message=JSON.parse(text)}catch(error){return}
-      fetch('/api/arena/transport/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid,message})}).catch(()=>{});
+      // Input and ping carry absolute state, so only the freshest one is worth
+      // sending; events (chat, upgrades, votes) are queued in order.
+      const replaceable=message.type==='input'||message.type==='ping';
+      const at=replaceable?outbox.findIndex(queued=>queued.type===message.type):-1;
+      if(at>=0)outbox[at]=message;else outbox.push(message);
+      if(outbox.length>32)outbox=outbox.slice(-32);
     };
     socketLike.close=()=>{const wasOpen=socketLike.readyState===1;halt();if(ws){try{ws.close()}catch(error){}}if(wasOpen)fire(socketLike.onclose)};
     return socketLike;
